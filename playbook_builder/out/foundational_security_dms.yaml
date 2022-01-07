@@ -1,0 +1,27 @@
+connections:
+  aws: ''
+desc: ''
+name: '"foundational_security_dms"'
+steps:
+- desc: example description delete afterwards
+  text: '#1 AWS Database Migration Service replication instances should not be public
+    - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S2
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S1.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+tags: []
+type: Flow

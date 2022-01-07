@@ -1,0 +1,21 @@
+steps:
+  - desc: example description delete afterwards
+    text: "# "
+  - action: core.sql
+    id: S1
+    name: Perform the query
+    desc: Description
+    inputs:
+      sql: |-
+        query
+  - action: slack.SendFile
+    id: S2
+    name: Send report to Slack
+    desc: Description
+    inputs:
+      Channel: demo
+      Content: "{{table_to_csv(steps.S1.output)}}"
+      File name: ""
+      File type: csv
+    connections:
+      slack: slack_connection

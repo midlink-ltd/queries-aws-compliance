@@ -1,0 +1,159 @@
+connections:
+  aws: ''
+desc: ''
+name: '"foundational_security_iam"'
+steps:
+- desc: example description delete afterwards
+  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S2
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S1.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S3
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S4
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S3.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S5
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S6
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S5.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S7
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S8
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S7.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S9
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S10
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S9.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S11
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S12
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S11.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S13
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S14
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S13.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S15
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S16
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S15.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+tags: []
+type: Flow

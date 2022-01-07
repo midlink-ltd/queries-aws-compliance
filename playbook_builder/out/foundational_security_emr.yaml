@@ -1,0 +1,27 @@
+connections:
+  aws: ''
+desc: ''
+name: '"foundational_security_emr"'
+steps:
+- desc: example description delete afterwards
+  text: '#1 Amazon EMR cluster master nodes should not have public IP addresses -
+    Not implemented'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S2
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S1.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+tags: []
+type: Flow

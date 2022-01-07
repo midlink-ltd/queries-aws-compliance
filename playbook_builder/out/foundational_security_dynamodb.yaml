@@ -1,0 +1,67 @@
+connections:
+  aws: ''
+desc: ''
+name: '"foundational_security_dynamodb"'
+steps:
+- desc: example description delete afterwards
+  text: '#3 DynamoDB Accelerator (DAX) clusters should be encrypted at rest - Not
+    implemented'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S2
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S1.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#3 DynamoDB Accelerator (DAX) clusters should be encrypted at rest - Not
+    implemented'
+- action: core.sql
+  desc: Description
+  id: S3
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S4
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S3.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+- desc: example description delete afterwards
+  text: '#3 DynamoDB Accelerator (DAX) clusters should be encrypted at rest - Not
+    implemented'
+- action: core.sql
+  desc: Description
+  id: S5
+  inputs:
+    sql: ''
+  name: Perform the query
+- action: slack.SendFile
+  connections:
+    slack: slack_connection
+  desc: Description
+  id: S6
+  inputs:
+    Channel: demo
+    Content: '{{table_to_csv(steps.S5.output)}}'
+    File name: ''
+    File type: csv
+  name: Send report to Slack
+tags: []
+type: Flow
