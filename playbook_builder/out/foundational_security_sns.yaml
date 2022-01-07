@@ -4,12 +4,16 @@ desc: ''
 name: '"foundational_security_sns"'
 steps:
 - desc: example description delete afterwards
-  text: '#1 SNS topics should be encrypted at rest using AWS KMS - Not implemented'
+  text: '#1 SNS topics should be encrypted at rest using AWS KMS'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  topic_arn as resource,\ncase\n  when\
+      \ kms_master_key_id is null then 'alarm'\n  else 'ok'\nend as status,\ncase\n\
+      \  when kms_master_key_id is null then title || ' encryption at rest disabled.'\n\
+      \  else title || ' encryption at rest enabled.'\nend as reason,\n  -- Additional\
+      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_sns_topic;\n"
   name: Perform the query
 - action: slack.SendFile
   connections:

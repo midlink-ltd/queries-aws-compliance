@@ -4,13 +4,21 @@ desc: ''
 name: '"foundational_security_emr"'
 steps:
 - desc: example description delete afterwards
-  text: '#1 Amazon EMR cluster master nodes should not have public IP addresses -
-    Not implemented'
+  text: '#1 Amazon EMR cluster master nodes should not have public IP addresses'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  c.cluster_arn as resource,\n  case\n\
+      \    when json_extract(c.status,'$.State') not in ('RUNNING', 'WAITING') then\
+      \ 'skip'\n    when s.map_public_ip_on_launch then 'alarm'\n    else 'ok'\n \
+      \ end as status,\n  case\n    when json_extract(c.status,'$.State') not in ('RUNNING',\
+      \ 'WAITING') then c.title || ' is in ' || (json_extract(c.status,'$.State'))\
+      \ || ' state.'\n    when s.map_public_ip_on_launch then c.title || ' master\
+      \ nodes assigned with public IP.'\n    else c.title || ' master nodes not assigned\
+      \ with public IP.'\n  end as reason,\n  -- Additional Dimensions\n  c.region,\n\
+      \  c.account_id\nfrom\n  aws_emr_cluster as c\n  left join aws_vpc_subnet as\
+      \ s on json_extract(c.ec2_instance_attributes,'$.Ec2SubnetId') = s.subnet_id;\n"
   name: Perform the query
 - action: slack.SendFile
   connections:

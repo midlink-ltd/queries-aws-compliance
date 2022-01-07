@@ -96,7 +96,7 @@ def convertBenchToPlaybook(bench, playbook):
         sql = DotMap(stepsTemplate["steps"][1])
         notif = DotMap(stepsTemplate["steps"][2])
 
-        queryFile = "../sqlite/auto/" + control["sql"].replace("query.",'').replace('"','')
+        queryFile = os.path.dirname(__file__) + "/../sqlite/auto/" + control["sql"].replace("query.",'').replace('"','')
         
         if exists(queryFile):
             # Fill section

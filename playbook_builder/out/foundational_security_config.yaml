@@ -4,12 +4,26 @@ desc: ''
 name: '"foundational_security_config"'
 steps:
 - desc: example description delete afterwards
-  text: '#1 AWS Config should be enabled - Not implemented'
+  text: '#1 AWS Config should be enabled'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n -- pgFormatter-ignore\n\nselect\n  -- Required columns\n  'arn:aws::'\
+      \ || a.region || ':' || a.account_id as resource,\n  case\n    when\n      json_extract(recording_group,'$.IncludeGlobalResourceTypes')\
+      \ = 'true'\n      and json_extract(recording_group,'$.AllSupported') = 'true'\n\
+      \      and json_extract(status,'$.Recording') = 'true'\n      and json_extract(status,'$.LastStatus')\
+      \ = 'SUCCESS'\n    then 'ok'\n    else 'alarm'\n  end as status,\n  case\n \
+      \   when json_extract(recording_group,'$.IncludeGlobalResourceTypes') = 'true'\
+      \ then a.region || ' IncludeGlobalResourceTypes enabled,'\n    else a.region\
+      \ || ' IncludeGlobalResourceTypes disabled,'\n  end ||\n  case\n    when json_extract(recording_group,'$.AllSupported')\
+      \ = 'true' then ' AllSupported enabled,'\n    else ' AllSupported disabled,'\n\
+      \  end ||\n  case\n    when json_extract(status,'$.Recording') = 'true' then\
+      \ ' Recording enabled'\n    else ' Recording disabled'\n  end ||\n  case\n \
+      \   when json_extract(status,'$.LastStatus') = 'SUCCESS' then ' and LastStatus\
+      \ is SUCCESS.'\n    else ' and LastStatus is not SUCCESS.'\n  end as reason,\n\
+      \  -- Additional columns\n  a.region,\n  a.account_id\nfrom\n  aws_region as\
+      \ a\n  left join aws_config_configuration_recorder as r on r.region = a.name;\n"
   name: Perform the query
 - action: slack.SendFile
   connections:

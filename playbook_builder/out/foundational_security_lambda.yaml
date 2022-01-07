@@ -4,12 +4,20 @@ desc: ''
 name: '"foundational_security_lambda"'
 steps:
 - desc: example description delete afterwards
-  text: '#2 Lambda functions should use latest runtimes - Not implemented'
+  text: '#2 Lambda functions should use latest runtimes'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ runtime in ('nodejs14.x', 'nodejs12.x', 'nodejs10.x', 'python3.8', 'python3.7',\
+      \ 'python3.6', 'ruby2.5', 'ruby2.7', 'java11', 'java8', 'go1.x', 'dotnetcore2.1',\
+      \ 'dotnetcore3.1') then 'ok'\n    else 'alarm'\n  end as status,\n  case\n \
+      \   when runtime in ('nodejs14.x', 'nodejs12.x', 'nodejs10.x', 'python3.8',\
+      \ 'python3.7', 'python3.6', 'ruby2.5', 'ruby2.7', 'java11', 'java8', 'go1.x',\
+      \ 'dotnetcore2.1', 'dotnetcore3.1') then title || ' uses latest runtimes.'\n\
+      \    else title || ' uses latest runtimes.'\n  end as reason,\n  -- Additional\
+      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_lambda_function;\n"
   name: Perform the query
 - action: slack.SendFile
   connections:
@@ -23,12 +31,20 @@ steps:
     File type: csv
   name: Send report to Slack
 - desc: example description delete afterwards
-  text: '#2 Lambda functions should use latest runtimes - Not implemented'
+  text: '#2 Lambda functions should use latest runtimes'
 - action: core.sql
   desc: Description
   id: S3
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ runtime in ('nodejs14.x', 'nodejs12.x', 'nodejs10.x', 'python3.8', 'python3.7',\
+      \ 'python3.6', 'ruby2.5', 'ruby2.7', 'java11', 'java8', 'go1.x', 'dotnetcore2.1',\
+      \ 'dotnetcore3.1') then 'ok'\n    else 'alarm'\n  end as status,\n  case\n \
+      \   when runtime in ('nodejs14.x', 'nodejs12.x', 'nodejs10.x', 'python3.8',\
+      \ 'python3.7', 'python3.6', 'ruby2.5', 'ruby2.7', 'java11', 'java8', 'go1.x',\
+      \ 'dotnetcore2.1', 'dotnetcore3.1') then title || ' uses latest runtimes.'\n\
+      \    else title || ' uses latest runtimes.'\n  end as reason,\n  -- Additional\
+      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_lambda_function;\n"
   name: Perform the query
 - action: slack.SendFile
   connections:

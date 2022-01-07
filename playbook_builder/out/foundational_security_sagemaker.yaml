@@ -4,13 +4,17 @@ desc: ''
 name: '"foundational_security_sagemaker"'
 steps:
 - desc: example description delete afterwards
-  text: '#1 SageMaker notebook instances should not have direct internet access -
-    Not implemented'
+  text: '#1 SageMaker notebook instances should not have direct internet access'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ direct_internet_access = 'Enabled' then 'alarm'\n    else 'ok'\n  end status,\n\
+      \  case\n    when direct_internet_access = 'Enabled' then title || ' direct\
+      \ internet access enabled.'\n    else title || ' direct internet access disabled.'\n\
+      \  end reason,\n  -- Additional Dimentions\n  region,\n  account_id\nfrom\n\
+      \  aws_sagemaker_notebook_instance;"
   name: Perform the query
 - action: slack.SendFile
   connections:

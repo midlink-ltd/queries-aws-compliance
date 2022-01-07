@@ -4,13 +4,16 @@ desc: ''
 name: '"foundational_security_dms"'
 steps:
 - desc: example description delete afterwards
-  text: '#1 AWS Database Migration Service replication instances should not be public
-    - Not implemented'
+  text: '#1 AWS Database Migration Service replication instances should not be public'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ publicly_accessible then 'alarm'\n    else 'ok'\n  end status,\n  case\n \
+      \   when publicly_accessible then title || ' publicly accessible.'\n    else\
+      \ title || ' not publicly accessible.'\n  end reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_dms_replication_instance;\n"
   name: Perform the query
 - action: slack.SendFile
   connections:

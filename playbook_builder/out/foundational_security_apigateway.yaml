@@ -5,12 +5,17 @@ name: '"foundational_security_apigateway"'
 steps:
 - desc: example description delete afterwards
   text: '#2 API Gateway REST API stages should be configured to use SSL certificates
-    for backend authentication - Not implemented'
+    for backend authentication'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:' || partition || ':apigateway:'\
+      \ || region || '::/apis/' || rest_api_id || '/stages/' as resource,\n  case\n\
+      \    when client_certificate_id is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when client_certificate_id is null then title || ' not\
+      \ uses SSL certificate.'\n    else title || ' uses SSL certificate.'\n  end\
+      \ as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n  aws_api_gateway_stage;"
   name: Perform the query
 - action: slack.SendFile
   connections:
@@ -25,12 +30,17 @@ steps:
   name: Send report to Slack
 - desc: example description delete afterwards
   text: '#2 API Gateway REST API stages should be configured to use SSL certificates
-    for backend authentication - Not implemented'
+    for backend authentication'
 - action: core.sql
   desc: Description
   id: S3
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:' || partition || ':apigateway:'\
+      \ || region || '::/apis/' || rest_api_id || '/stages/' as resource,\n  case\n\
+      \    when client_certificate_id is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when client_certificate_id is null then title || ' not\
+      \ uses SSL certificate.'\n    else title || ' uses SSL certificate.'\n  end\
+      \ as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n  aws_api_gateway_stage;"
   name: Perform the query
 - action: slack.SendFile
   connections:

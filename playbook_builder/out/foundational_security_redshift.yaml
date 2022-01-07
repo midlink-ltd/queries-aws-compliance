@@ -4,12 +4,18 @@ desc: ''
 name: '"foundational_security_redshift"'
 steps:
 - desc: example description delete afterwards
-  text: '#7 Amazon Redshift clusters should use enhanced VPC routing - Not implemented'
+  text: '#7 Amazon Redshift clusters should use enhanced VPC routing'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:aws:redshift:' || region || ':'\
+      \ || account_id || ':' || 'cluster' || ':' || cluster_identifier as resource,\n\
+      \  case\n    when enhanced_vpc_routing then 'ok'\n    else 'alarm'\n  end as\
+      \ status,\n  case\n    when enhanced_vpc_routing then title || ' enhanced VPC\
+      \ routing enabled.'\n    else title || ' enhanced VPC routing disabled.'\n \
+      \ end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_redshift_cluster;"
   name: Perform the query
 - action: slack.SendFile
   connections:
@@ -23,12 +29,18 @@ steps:
     File type: csv
   name: Send report to Slack
 - desc: example description delete afterwards
-  text: '#7 Amazon Redshift clusters should use enhanced VPC routing - Not implemented'
+  text: '#7 Amazon Redshift clusters should use enhanced VPC routing'
 - action: core.sql
   desc: Description
   id: S3
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:aws:redshift:' || region || ':'\
+      \ || account_id || ':' || 'cluster' || ':' || cluster_identifier as resource,\n\
+      \  case\n    when enhanced_vpc_routing then 'ok'\n    else 'alarm'\n  end as\
+      \ status,\n  case\n    when enhanced_vpc_routing then title || ' enhanced VPC\
+      \ routing enabled.'\n    else title || ' enhanced VPC routing disabled.'\n \
+      \ end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_redshift_cluster;"
   name: Perform the query
 - action: slack.SendFile
   connections:
@@ -42,12 +54,18 @@ steps:
     File type: csv
   name: Send report to Slack
 - desc: example description delete afterwards
-  text: '#7 Amazon Redshift clusters should use enhanced VPC routing - Not implemented'
+  text: '#7 Amazon Redshift clusters should use enhanced VPC routing'
 - action: core.sql
   desc: Description
   id: S5
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:aws:redshift:' || region || ':'\
+      \ || account_id || ':' || 'cluster' || ':' || cluster_identifier as resource,\n\
+      \  case\n    when enhanced_vpc_routing then 'ok'\n    else 'alarm'\n  end as\
+      \ status,\n  case\n    when enhanced_vpc_routing then title || ' enhanced VPC\
+      \ routing enabled.'\n    else title || ' enhanced VPC routing disabled.'\n \
+      \ end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_redshift_cluster;"
   name: Perform the query
 - action: slack.SendFile
   connections:
@@ -61,12 +79,18 @@ steps:
     File type: csv
   name: Send report to Slack
 - desc: example description delete afterwards
-  text: '#7 Amazon Redshift clusters should use enhanced VPC routing - Not implemented'
+  text: '#7 Amazon Redshift clusters should use enhanced VPC routing'
 - action: core.sql
   desc: Description
   id: S7
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:aws:redshift:' || region || ':'\
+      \ || account_id || ':' || 'cluster' || ':' || cluster_identifier as resource,\n\
+      \  case\n    when enhanced_vpc_routing then 'ok'\n    else 'alarm'\n  end as\
+      \ status,\n  case\n    when enhanced_vpc_routing then title || ' enhanced VPC\
+      \ routing enabled.'\n    else title || ' enhanced VPC routing disabled.'\n \
+      \ end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_redshift_cluster;"
   name: Perform the query
 - action: slack.SendFile
   connections:
@@ -80,12 +104,18 @@ steps:
     File type: csv
   name: Send report to Slack
 - desc: example description delete afterwards
-  text: '#7 Amazon Redshift clusters should use enhanced VPC routing - Not implemented'
+  text: '#7 Amazon Redshift clusters should use enhanced VPC routing'
 - action: core.sql
   desc: Description
   id: S9
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:aws:redshift:' || region || ':'\
+      \ || account_id || ':' || 'cluster' || ':' || cluster_identifier as resource,\n\
+      \  case\n    when enhanced_vpc_routing then 'ok'\n    else 'alarm'\n  end as\
+      \ status,\n  case\n    when enhanced_vpc_routing then title || ' enhanced VPC\
+      \ routing enabled.'\n    else title || ' enhanced VPC routing disabled.'\n \
+      \ end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_redshift_cluster;"
   name: Perform the query
 - action: slack.SendFile
   connections:
