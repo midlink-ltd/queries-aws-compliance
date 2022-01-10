@@ -10,8 +10,9 @@ steps:
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S2
@@ -39,6 +40,7 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - desc: example description delete afterwards
   description: This control checks that none of your IAM users have policies attached.
     Instead, IAM users must inherit permissions from IAM groups or roles.
@@ -172,8 +174,9 @@ steps:
   desc: Description
   id: S9
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S10
@@ -201,6 +204,7 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - desc: example description delete afterwards
   description: This control checks whether your AWS account is enabled to use a hardware
     multi-factor authentication (MFA) device to sign in with root user credentials.
@@ -298,8 +302,9 @@ steps:
   desc: Description
   id: S15
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S16
@@ -326,6 +331,7 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - action: core.python
   desc: Description
   id: FormatResult
@@ -339,12 +345,11 @@ steps:
       \nstep_ids = ['S2', 'S4', 'S6', 'S8', 'S10', 'S12', 'S14', 'S16']\nfor id in\
       \ step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
       type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
-      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    steps\
-      \ = context.steps\n    section.text.text = context.steps[id].output.name[:72].ljust(72,\
-      \ ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
-      \ +=  \" :x:\\n\".rjust(91 - len(section.text.text),' ')\n    else:\n      \
-      \ section.text.text +=  \" :white_check_mark:\\n\".rjust(91 - len(section.text.text),'\
-      \ ')\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
+      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
+      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
+      \\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
   connectiuon:

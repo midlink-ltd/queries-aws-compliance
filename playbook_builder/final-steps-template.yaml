@@ -37,13 +37,13 @@ steps:
             section.type = "section"
             section.text = DotMap()
             section.text.type = "mrkdwn"
-            steps = context.steps
+            section.text.text = ""
             if context.steps[id].output.isAlarm:
               section.text.text +=  ":x: "
             else:
-               section.text.text +=  ":white_check_mark:"
+               section.text.text +=  ":white_check_mark: "
             
-            section.text.text += context.steps[id].output + "\n"
+            section.text.text += context.steps[id].output.name[:82] + "\n"
             
 
             message_blocks.append(section.toDict().copy())

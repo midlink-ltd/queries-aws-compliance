@@ -122,8 +122,10 @@ def convertBenchToPlaybook(bench, playbook):
             # Fill section
             section.text = "#" + control["title"].replace('"','') + " - Not implemented"
             # Fill sql query action
-            sql.inputs.sql = ""
+            sql.inputs.sql = "Select * from true"
             sql.id = "S"+str(sectionId+1)
+            sql.when = "False"
+            format_message.when = "False"
            
         #fill format message
         format_message.id = "S"+str(sectionId+2)

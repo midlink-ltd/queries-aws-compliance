@@ -198,8 +198,9 @@ steps:
   desc: Description
   id: S9
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S10
@@ -227,6 +228,7 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - desc: example description delete afterwards
   description: This control checks whether enhanced monitoring is enabled for your
     RDS DB instances. In Amazon RDS, Enhanced Monitoring enables a more rapid response
@@ -370,8 +372,9 @@ steps:
   desc: Description
   id: S17
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S18
@@ -398,6 +401,7 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - desc: example description delete afterwards
   description: This control checks whether an RDS DB instance has IAM database authentication
     enabled IAM database authentication allows authentication to database instances
@@ -534,8 +538,9 @@ steps:
   desc: Description
   id: S25
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S26
@@ -563,6 +568,7 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - action: core.python
   desc: Description
   id: FormatResult
@@ -577,12 +583,11 @@ steps:
       \ 'S22', 'S24', 'S26']\nfor id in step_ids:\n  if context.steps[id].status ==\
       \ 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
       \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
-      \    section.text.type = \"mrkdwn\"\n    steps = context.steps\n    section.text.text\
-      \ = context.steps[id].output.name[:72].ljust(72, ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n\
-      \      section.text.text +=  \" :x:\\n\".rjust(91 - len(section.text.text),'\
-      \ ')\n    else:\n       section.text.text +=  \" :white_check_mark:\\n\".rjust(91\
-      \ - len(section.text.text),' ')\n    message_blocks.append(section.toDict().copy())\n\
-      \n  \nprint(json.dumps(message_blocks))"
+      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
+      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
+      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
+      \  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
   connectiuon:

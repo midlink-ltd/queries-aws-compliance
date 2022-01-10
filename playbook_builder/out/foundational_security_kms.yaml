@@ -10,8 +10,9 @@ steps:
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S2
@@ -39,6 +40,7 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - desc: example description delete afterwards
   text: '#2 IAM principals should not have IAM inline policies that allow decryption
     actions on all KMS keys - Not implemented'
@@ -46,8 +48,9 @@ steps:
   desc: Description
   id: S3
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S4
@@ -75,14 +78,16 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - desc: example description delete afterwards
   text: '#3 AWS KMS keys should not be unintentionally deleted - Not implemented'
 - action: core.sql
   desc: Description
   id: S5
   inputs:
-    sql: ''
+    sql: Select * from true
   name: Perform the query
+  when: 'False'
 - action: core.python
   desc: Description
   id: S6
@@ -109,6 +114,7 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+  when: 'False'
 - action: core.python
   desc: Description
   id: FormatResult
@@ -122,12 +128,11 @@ steps:
       \nstep_ids = ['S2', 'S4', 'S6']\nfor id in step_ids:\n  if context.steps[id].status\
       \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
       \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
-      \    section.text.type = \"mrkdwn\"\n    steps = context.steps\n    section.text.text\
-      \ = context.steps[id].output.name[:72].ljust(72, ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n\
-      \      section.text.text +=  \" :x:\\n\".rjust(91 - len(section.text.text),'\
-      \ ')\n    else:\n       section.text.text +=  \" :white_check_mark:\\n\".rjust(91\
-      \ - len(section.text.text),' ')\n    message_blocks.append(section.toDict().copy())\n\
-      \n  \nprint(json.dumps(message_blocks))"
+      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
+      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
+      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
+      \  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
   connectiuon:
