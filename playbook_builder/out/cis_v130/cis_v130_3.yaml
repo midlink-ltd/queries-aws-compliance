@@ -1,0 +1,546 @@
+connections:
+  aws: aws_connection
+desc: ''
+name: cis_v130_3
+steps:
+- desc: example description delete afterwards
+  description: AWS CloudTrail is a web service that records AWS API calls for your
+    account and delivers log files to you. The recorded information includes the identity
+    of the API caller, the time of the API call, the source IP address of the API
+    caller, the request parameters, and the response elements returned by the AWS
+    service. CloudTrail provides a history of AWS API calls for an account, including
+    API calls made via the Management Console, SDKs, command line tools, and higher-level
+    AWS services (such as CloudFormation).
+  text: '#3.1 Ensure CloudTrail is enabled in all regions'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: " \n  with trail_details as (\n  select\n    name as trail_name,\n    arn,\n\
+      \    is_multi_region_trail,\n    is_logging,\n    event_selectors,\n    json_extract(e.value,'$.ReadWriteType')\
+      \ as read_write_type,\n    account_id,\n    region\n  from\n    aws_cloudtrail_trail,\n\
+      \    json_each(event_selectors) as e\n)\nselect\n  -- Required Columns\n  arn\
+      \ as resource,\n  case\n    when not trail_details.is_multi_region_trail then\
+      \ 'alarm'\n    when not trail_details.is_logging then 'alarm'\n    when read_write_type\
+      \ <> 'All' then 'alarm'\n    else 'ok'\n  end as status,\n  trail_details.trail_name\
+      \ ||\n    case when trail_details.is_multi_region_trail then ' is ' else ' is\
+      \ not ' end || 'multi-region,' ||\n    case when trail_details.is_logging then\
+      \ ' logging enabled' else ' logging disabled' end ||\n    ' for ' || read_write_type\
+      \ || ' events.'\n  as reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
+      from\n  trail_details\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S2
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#3.1 Ensure CloudTrail is enabled in all regions"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: CloudTrail log file validation creates a digitally signed digest file
+    containing a hash of each log that CloudTrail writes to S3. These digest files
+    can be used to determine whether a log file was changed, deleted, or unchanged
+    after CloudTrail delivered the log. It is recommended that file validation be
+    enabled on all CloudTrails.
+  text: '#3.2 Ensure CloudTrail log file validation is enabled.'
+- action: core.sql
+  desc: Description
+  id: S3
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ log_file_validation_enabled then 'ok'\n    else 'alarm'\n  end as status,\n\
+      \  case\n    when log_file_validation_enabled then title || ' log file validation\
+      \ enabled.'\n    else title || ' log file validation disabled.'\n  end as reason,\n\
+      \  -- Additional Dimensions\n  region,\n  account_id\nfrom\n  aws_cloudtrail_trail;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S4
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#3.2 Ensure CloudTrail log file validation is enabled."
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: CloudTrail logs a record of every API call made in your AWS account.
+    These logs file are stored in an S3 bucket. It is recommended that the bucket
+    policy or access control list (ACL) applied to the S3 bucket that CloudTrail logs
+    to prevent public access to the CloudTrail logs.
+  text: '#3.3 Ensure the S3 bucket used to store CloudTrail logs is not publicly accessible'
+- action: core.sql
+  desc: Description
+  id: S5
+  inputs:
+    sql: " \n with public_bucket_data as (\n-- note the counts are not exactly CORRECT\
+      \ because of the jsonb_array_elements joins,\n-- but will be non-zero if any\
+      \ matches are found\n  select\n    t.s3_bucket_name as name,\n    b.arn,\n \
+      \   t.region,\n    t.account_id,\n    count(acl_grant.value) filter (where json_extract(acl_grant.value,'$.Grantee.URI')\
+      \ like '%acs.amazonaws.com/groups/global/AllUsers') as all_user_grants,\n  \
+      \  count(acl_grant.value) filter (where json_extract(acl_grant.value,'$.Grantee.URI')\
+      \ like '%acs.amazonaws.com/groups/global/AuthenticatedUsers') as auth_user_grants,\n\
+      \    count(s.value) filter (where json_extract(s.value,'$.Effect') = 'Allow'\
+      \ and  p.value = '*' ) as anon_statements\n  from\n    aws_cloudtrail_trail\
+      \ as t\n  left join aws_s3_bucket as b on t.s3_bucket_name = b.name\n  left\
+      \ join json_each(acl, '$.Grants') as acl_grant on true\n  left join json_each(policy_std,\
+      \ '$.Statement') as s  on true\n  left join json_each(s.value, '$.Principal.AWS')\
+      \ as p  on true\n  group by\n    t.s3_bucket_name,\n    b.arn,\n    t.region,\n\
+      \    t.account_id\n)\n\nselect\n  -- Required Columns\n  case\n    when arn\
+      \ is null then 'arn:aws:s3::' || name\n    else arn\n  end as resource,\n  case\n\
+      \    when arn is null then 'skip'\n    when all_user_grants > 0 then 'alarm'\n\
+      \    when auth_user_grants > 0 then 'alarm'\n    when anon_statements > 0 then\
+      \ 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when arn is null then\
+      \ name || ' not found in account ' || account_id || '.'\n    when all_user_grants\
+      \ > 0 then name || ' grants access to AllUsers in ACL.'\n    when auth_user_grants\
+      \ > 0 then name || ' grants access to AuthenticatedUsers in ACL.'\n    when\
+      \ anon_statements > 0 then name || ' grants access to AWS:*\" in bucket policy.'\n\
+      \    else name || ' does not grant anonymous access in ACL or bucket policy.'\n\
+      \  end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  public_bucket_data\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S6
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#3.3 Ensure the S3 bucket used to store CloudTrail logs is not
+      publicly accessible"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: AWS CloudTrail is a web service that records AWS API calls made in
+    a given AWS account. The recorded information includes the identity of the API
+    caller, the time of the API call, the source IP address of the API caller, the
+    request parameters, and the response elements returned by the AWS service. CloudTrail
+    uses Amazon S3 for log file storage and delivery, so log files are stored durably.
+    In addition to capturing CloudTrail logs within a specified S3 bucket for long
+    term analysis, realtime analysis can be performed by configuring CloudTrail to
+    send logs to CloudWatch Logs. For a trail that is enabled in all regions in an
+    account, CloudTrail sends log files from all those regions to a CloudWatch Logs
+    log group. It is recommended that CloudTrail logs be sent to CloudWatch Logs.
+  text: '#3.4 Ensure CloudTrail trails are integrated with CloudWatch Logs'
+- action: core.sql
+  desc: Description
+  id: S7
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ log_group_arn != 'null' and ((latest_delivery_time) > current_date - 1) then\
+      \ 'ok'\n    else 'alarm'\n  end as status,\n  case\n    when log_group_arn !=\
+      \ 'null' and ((latest_delivery_time) > current_date - 1) then title || ' integrated\
+      \ with CloudWatch logs.'\n    else title || ' not integrated with CloudWatch\
+      \ logs.'\n  end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
+      from\n  aws_cloudtrail_trail;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S8
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S7.output.rows if ( x[context.steps.S7.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S7.output.rows
+
+      check.name = "#3.4 Ensure CloudTrail trails are integrated with CloudWatch Logs"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: AWS Config is a web service that performs configuration management
+    of supported AWS resources within your account and delivers log files to you.
+    The recorded information includes the configuration item (AWS resource), relationships
+    between configuration items (AWS resources), any configuration changes between
+    resources. It is recommended to enable AWS Config be enabled in all regions.
+  text: '#3.5 Ensure AWS Config is enabled in all regions'
+- action: core.sql
+  desc: Description
+  id: S9
+  inputs:
+    sql: " \n -- pgFormatter-ignore\n\nselect\n  -- Required columns\n  'arn:aws::'\
+      \ || a.region || ':' || a.account_id as resource,\n  case\n    when\n      json_extract(recording_group,'$.IncludeGlobalResourceTypes')\
+      \ = 'true'\n      and json_extract(recording_group,'$.AllSupported') = 'true'\n\
+      \      and json_extract(status,'$.Recording') = 'true'\n      and json_extract(status,'$.LastStatus')\
+      \ = 'SUCCESS'\n    then 'ok'\n    else 'alarm'\n  end as status,\n  case\n \
+      \   when json_extract(recording_group,'$.IncludeGlobalResourceTypes') = 'true'\
+      \ then a.region || ' IncludeGlobalResourceTypes enabled,'\n    else a.region\
+      \ || ' IncludeGlobalResourceTypes disabled,'\n  end ||\n  case\n    when json_extract(recording_group,'$.AllSupported')\
+      \ = 'true' then ' AllSupported enabled,'\n    else ' AllSupported disabled,'\n\
+      \  end ||\n  case\n    when json_extract(status,'$.Recording') = 'true' then\
+      \ ' Recording enabled'\n    else ' Recording disabled'\n  end ||\n  case\n \
+      \   when json_extract(status,'$.LastStatus') = 'SUCCESS' then ' and LastStatus\
+      \ is SUCCESS.'\n    else ' and LastStatus is not SUCCESS.'\n  end as reason,\n\
+      \  -- Additional columns\n  a.region,\n  a.account_id\nfrom\n  aws_region as\
+      \ a\n  left join aws_config_configuration_recorder as r on r.region = a.name;\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S10
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S9.output.rows if ( x[context.steps.S9.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S9.output.rows
+
+      check.name = "#3.5 Ensure AWS Config is enabled in all regions"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: S3 Bucket Access Logging generates a log that contains access records
+    for each request made to your S3 bucket. An access log record contains details
+    about the request, such as the request type, the resources specified in the request
+    worked, and the time and date the request was processed. It is recommended that
+    bucket access logging be enabled on the CloudTrail S3 bucket.
+  text: '#3.6 Ensure S3 bucket access logging is enabled on the CloudTrail S3 bucket'
+- action: core.sql
+  desc: Description
+  id: S11
+  inputs:
+    sql: " \n select\n  -- Required columns\n  t.arn as resource,\n  case\n    when\
+      \ b.logging is not null then 'ok'\n    else 'alarm'\n  end as status,\n  case\n\
+      \    when b.logging is not null then t.title || '\"s logging bucket ' || t.s3_bucket_name\
+      \ || ' has access logging enabled.'\n    else t.title || '''s logging bucket\
+      \ ' || t.s3_bucket_name || ' has access logging disabled.'\n  end as reason,\n\
+      \  -- Additional columns\n  t.region,\n  t.account_id\nfrom\n  aws_cloudtrail_trail\
+      \ t\n  inner join aws_s3_bucket b on t.s3_bucket_name = b.name;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S12
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S11.output.rows if ( x[context.steps.S11.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S11.output.rows
+
+      check.name = "#3.6 Ensure S3 bucket access logging is enabled on the CloudTrail
+      S3 bucket"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: AWS CloudTrail is a web service that records AWS API calls for an account
+    and makes those logs available to users and resources in accordance with IAM policies.
+    AWS Key Management Service (KMS) is a managed service that helps create and control
+    the encryption keys used to encrypt account data, and uses Hardware Security Modules
+    (HSMs) to protect the security of encryption keys. CloudTrail logs can be configured
+    to leverage server side encryption (SSE) and KMS customer created master keys
+    (CMK) to further protect CloudTrail logs. It is recommended that CloudTrail be
+    configured to use SSE-KMS.
+  text: '#3.7 Ensure CloudTrail logs are encrypted at rest using KMS CMKs'
+- action: core.sql
+  desc: Description
+  id: S13
+  inputs:
+    sql: " \n select\n  -- Required columns\n  arn as resource,\n  case\n    when\
+      \ kms_key_id is null then 'alarm'\n    else 'ok'\n  end as status,\n  case\n\
+      \    when kms_key_id is null then title || ' logs are not encrypted at rest.'\n\
+      \    else title || ' logs are encrypted at rest.'\n  end as reason,\n  -- Additional\
+      \ columns\n  region,\n  account_id\nfrom\n  aws_cloudtrail_trail;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S14
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S13.output.rows if ( x[context.steps.S13.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S13.output.rows
+
+      check.name = "#3.7 Ensure CloudTrail logs are encrypted at rest using KMS CMKs"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: AWS Key Management Service (KMS) allows customers to rotate the backing
+    key which is key material stored within the KMS which is tied to the key ID of
+    the Customer Created customer master key (CMK). It is the backing key that is
+    used to perform cryptographic operations such as encryption and decryption. Automated
+    key rotation currently retains all prior backing keys so that decryption of encrypted
+    data can take place transparently. It is recommended that CMK key rotation be
+    enabled.
+  text: '#3.8 Ensure rotation for customer created CMKs is enabled'
+- action: core.sql
+  desc: Description
+  id: S15
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ not key_rotation_enabled then 'alarm'\n    else 'ok'\n  end as status,\n \
+      \ case\n    when not key_rotation_enabled then title || ' key rotation disabled.'\n\
+      \    else title || ' key rotation enabled.'\n  end as reason,\n  -- Additional\
+      \ columns\n  region,\n  account_id\nfrom\n  aws_kms_key\nwhere\n  key_manager\
+      \ = 'CUSTOMER';"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S16
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S15.output.rows if ( x[context.steps.S15.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S15.output.rows
+
+      check.name = "#3.8 Ensure rotation for customer created CMKs is enabled"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  text: '#3.9 Ensure VPC flow logging is enabled in all VPCs - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S17
+  inputs:
+    sql: Select * from true
+  name: Perform the query
+  when: 'False'
+- action: core.python
+  desc: Description
+  id: S18
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S17.output.rows if ( x[context.steps.S17.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S17.output.rows
+
+      check.name = "#3.9 Ensure VPC flow logging is enabled in all VPCs - Not implemented"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+  when: 'False'
+- desc: example description delete afterwards
+  text: '#3.10 Ensure that Object-level logging for write events is enabled for S3
+    bucket - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S19
+  inputs:
+    sql: Select * from true
+  name: Perform the query
+  when: 'False'
+- action: core.python
+  desc: Description
+  id: S20
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S19.output.rows if ( x[context.steps.S19.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S19.output.rows
+
+      check.name = "#3.10 Ensure that Object-level logging for write events is enabled
+      for S3 bucket - Not implemented"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+  when: 'False'
+- desc: example description delete afterwards
+  text: '#3.11 Ensure that Object-level logging for read events is enabled for S3
+    bucket - Not implemented'
+- action: core.sql
+  desc: Description
+  id: S21
+  inputs:
+    sql: Select * from true
+  name: Perform the query
+  when: 'False'
+- action: core.python
+  desc: Description
+  id: S22
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S21.output.rows if ( x[context.steps.S21.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S21.output.rows
+
+      check.name = "#3.11 Ensure that Object-level logging for read events is enabled
+      for S3 bucket - Not implemented"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+  when: 'False'
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  cis_v130_3\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  cis_v130_3 Check results \",\"type\":\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\n\nstep_ids = ['S2', 'S4', 'S6', 'S8',\
+      \ 'S10', 'S12', 'S14', 'S16', 'S18', 'S20', 'S22']\nfor id in step_ids:\n  if\
+      \ context.steps[id].status == 'OK':\n    message_blocks.append({\"type\":\"\
+      divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\n\
+      \    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
+      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
+      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
+      \\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
+tags: []
+type: Flow

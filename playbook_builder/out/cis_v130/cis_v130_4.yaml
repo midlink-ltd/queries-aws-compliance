@@ -1,0 +1,977 @@
+connections:
+  aws: aws_connection
+desc: ''
+name: cis_v130_4
+steps:
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for unauthorized
+    API calls.
+  text: '#4.1 Ensure a log metric filter and alarm exist for unauthorized API calls'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, 'errorCode\\s*=\\s*\"\\\
+      *{0,1}UnauthorizedOperation\\*{0,1}\"')\n    and like_regex(filter.filter_pattern,\
+      \ 'errorCode\\s*=\\s*\"\\*{0,1}AccessDenied\\*{0,1}\"')\n    --and like_regex(filter.filter_pattern,\
+      \ 'sourceIPAddress\\s*!=\\s*\"delivery.logs.amazonaws.com\"')\n    --and like_regex(filter.filter_pattern,\
+      \ 'eventName\\s*!=\\s*\"HeadBucket\"')\n    and alarm.metric_name = filter.metric_transformation_name\n\
+      \    and subscription.topic_arn = action_arn.value\n)\nselect\n  -- Required\
+      \ Columns\n  'arn:' || a.partition || ':::' || a.account_id as resource,\n \
+      \ case\n    when f.trail_name is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when f.trail_name is null then 'No log metric filter\
+      \ and alarm exist for unauthorized API calls.'\n    else filter_name || ' forwards\
+      \ events for unauthorized API calls.'\n  end as reason,\n  -- Additional Dimensions\n\
+      \  a.account_id\nfrom\n  aws_account as a\n  left join filter_data as f on a.account_id\
+      \ = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S2
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#4.1 Ensure a log metric filter and alarm exist for unauthorized
+      API calls"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for console logins
+    that are not protected by multi-factor authentication (MFA).
+  text: '#4.2 Ensure a log metric filter and alarm exist for Management Console sign-in
+    without MFA'
+- action: core.sql
+  desc: Description
+  id: S3
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\(\\s*\\$\\.eventName\\\
+      s*=\\s*\"ConsoleLogin\"\\)\\s+&&\\s+\\(\\s*\\$.additionalEventData\\.MFAUsed\\\
+      s*!=\\s*\"Yes\"')\n    and alarm.metric_name = filter.metric_transformation_name\n\
+      \    and subscription.topic_arn = action_arn.value\n)\nselect\n  -- Required\
+      \ Columns\n  'arn:' || a.partition || ':::' || a.account_id as resource,\n \
+      \ case\n    when f.trail_name is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when f.trail_name is null then 'No log metric filter\
+      \ and alarm exist for console sign-in without MFA.'\n    else filter_name ||\
+      \ ' forwards events for console sign-in without MFA.'\n  end as reason,\n  --\
+      \ Additional Dimensions\n  a.account_id\nfrom\n  aws_account as a\n  left join\
+      \ filter_data as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S4
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#4.2 Ensure a log metric filter and alarm exist for Management
+      Console sign-in without MFA"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for root login
+    attempts.
+  text: '#4.3 Ensure a log metric filter and alarm exist for usage of \root\ account'
+- action: core.sql
+  desc: Description
+  id: S5
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.userIdentity.type\\\
+      s*=\\s*\"Root\"')\n    and alarm.metric_name = filter.metric_transformation_name\n\
+      \    and subscription.topic_arn = action_arn.value\n)\nselect\n  -- Required\
+      \ Columns\n  'arn:' || a.partition || ':::' || a.account_id as resource,\n \
+      \ case\n    when f.trail_name is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when f.trail_name is null then 'No log metric filter\
+      \ and alarm exist for usage of \"root\" account.'\n    else filter_name || '\
+      \ forwards events for usage of \"root\" account.'\n  end as reason,\n  -- Additional\
+      \ Dimensions\n  a.account_id\nfrom\n  aws_account as a\n  left join filter_data\
+      \ as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S6
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#4.3 Ensure a log metric filter and alarm exist for usage of \root\
+      account"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established changes made to
+    Identity and Access Management (IAM) policies.
+  text: '#4.4 Ensure a log metric filter and alarm exist for IAM policy changes'
+- action: core.sql
+  desc: Description
+  id: S7
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging as is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern,\n    filter.metric_transformation_name\n  from\n\
+      \    aws_cloudtrail_trail as trail,\n    json_each(trail.event_selectors) as\
+      \ se,\n    aws_cloudwatch_log_metric_filter as filter,\n    aws_cloudwatch_alarm\
+      \ as alarm,\n    json_each(alarm.alarm_actions) as action_arn,\n    aws_sns_topic_subscription\
+      \ as subscription\n  where\n    trail.is_multi_region_trail is true\n    and\
+      \ trail.is_logging\n    and json_extract(se.value,'$.ReadWriteType') = 'All'\n\
+      \    and trail.log_group_arn is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n\tand like_regex(filter.filter_pattern, '\\s*\\$\\.eventName\\s*=\\\
+      s*DeleteGroupPolicy.+\\$\\.eventName\\s*=\\s*DeleteRolePolicy.+\\$\\.eventName\\\
+      s*=\\s*DeleteUserPolicy.+\\$\\.eventName\\s*=\\s*PutGroupPolicy.+\\$\\.eventName\\\
+      s*=\\s*PutRolePolicy.+\\$\\.eventName\\s*=\\s*PutUserPolicy.+\\$\\.eventName\\\
+      s*=\\s*CreatePolicy.+\\$\\.eventName\\s*=\\s*DeletePolicy.+\\$\\.eventName\\\
+      s*=\\s*CreatePolicyVersion.+\\$\\.eventName\\s*=\\s*DeletePolicyVersion.+\\\
+      $\\.eventName\\s*=\\s*AttachRolePolicy.+\\$\\.eventName\\s*=\\s*DetachRolePolicy.+\\\
+      $\\.eventName\\s*=\\s*AttachUserPolicy.+\\$\\.eventName\\s*=\\s*DetachUserPolicy.+\\\
+      $\\.eventName\\s*=\\s*AttachGroupPolicy.+\\$\\.eventName\\s*=\\s*DetachGroupPolicy')\n\
+      \    and alarm.metric_name = filter.metric_transformation_name\n    and subscription.topic_arn\
+      \ = action_arn.value\n)\nselect\n  -- Required Columns\n  'arn:' || a.partition\
+      \ || ':::' || a.account_id as resource,\n  case\n    when f.trail_name is null\
+      \ then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when f.trail_name\
+      \ is null then 'No log metric filter and alarm exist for IAM policy changes.'\n\
+      \    else filter_name || ' forwards events for IAM policy changes.'\n  end as\
+      \ reason,\n  -- Additional Dimensions\n  a.account_id\nfrom\n  aws_account as\
+      \ a\n  left join filter_data as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S8
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S7.output.rows if ( x[context.steps.S7.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S7.output.rows
+
+      check.name = "#4.4 Ensure a log metric filter and alarm exist for IAM policy
+      changes"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for detecting
+    changes to CloudTrail's configurations.
+  text: '#4.5 Ensure a log metric filter and alarm exist for CloudTrail configuration
+    changes'
+- action: core.sql
+  desc: Description
+  id: S9
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventName\\\
+      s*=\\s*CreateTrail.+\\$\\.eventName\\s*=\\s*UpdateTrail.+\\$\\.eventName\\s*=\\\
+      s*DeleteTrail.+\\$\\.eventName\\s*=\\s*StartLogging.+\\$\\.eventName\\s*=\\\
+      s*StopLogging')\n    and alarm.metric_name = filter.metric_transformation_name\n\
+      \    and subscription.topic_arn = action_arn.value\n)\nselect\n  -- Required\
+      \ Columns\n  'arn:' || a.partition || ':::' || a.account_id as resource,\n \
+      \ case\n    when f.trail_name is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when f.trail_name is null then 'No log metric filter\
+      \ and alarm exist for CloudTrail configuration changes.'\n    else filter_name\
+      \ || ' forwards events for CloudTrail configuration changes.'\n  end as reason,\n\
+      \  -- Additional Dimensions\n  a.account_id\nfrom\n  aws_account as a\n  left\
+      \ join filter_data as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S10
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S9.output.rows if ( x[context.steps.S9.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S9.output.rows
+
+      check.name = "#4.5 Ensure a log metric filter and alarm exist for CloudTrail
+      configuration changes"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for failed console
+    authentication attempts.
+  text: '#4.6 Ensure a log metric filter and alarm exist for AWS Management Console
+    authentication failures'
+- action: core.sql
+  desc: Description
+  id: S11
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventName\\\
+      s*=\\s*ConsoleLogin.+\\$\\.errorMessage\\s*=\\s*\"Failed authentication\"')\n\
+      \    and alarm.metric_name = filter.metric_transformation_name\n    and subscription.topic_arn\
+      \ = action_arn.value\n)\nselect\n  -- Required Columns\n  'arn:' || a.partition\
+      \ || ':::' || a.account_id as resource,\n  case\n    when f.trail_name is null\
+      \ then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when f.trail_name\
+      \ is null then 'No log metric filter and alarm exist for console authentication\
+      \ failures.'\n    else filter_name || ' forwards events for console authentication\
+      \ failures.'\n  end as reason,\n  -- Additional Dimensions\n  a.account_id\n\
+      from\n  aws_account as a\n  left join filter_data as f on a.account_id = f.account_id\n\
+      limit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S12
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S11.output.rows if ( x[context.steps.S11.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S11.output.rows
+
+      check.name = "#4.6 Ensure a log metric filter and alarm exist for AWS Management
+      Console authentication failures"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for customer created
+    CMKs which have changed state to disabled or scheduled deletion.
+  text: '#4.7 Ensure a log metric filter and alarm exist for disabling or scheduled
+    deletion of customer created CMKs'
+- action: core.sql
+  desc: Description
+  id: S13
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventSource\\\
+      s*=\\s*kms.amazonaws.com.+\\$\\.eventName\\s*=\\s*DisableKey.+\\$\\.eventName\\\
+      s*=\\s*ScheduleKeyDeletion')\n    and alarm.metric_name = filter.metric_transformation_name\n\
+      \    and subscription.topic_arn = action_arn.value\n)\nselect\n  -- Required\
+      \ Columns\n  'arn:' || a.partition || ':::' || a.account_id as resource,\n \
+      \ case\n    when f.trail_name is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when f.trail_name is null then 'No log metric filter\
+      \ and alarm exist for disabling/deletion of CMKs.'\n    else filter_name ||\
+      \ ' forwards events for disabling/deletion of CMKs.'\n  end as reason,\n  --\
+      \ Additional Dimensions\n  a.account_id\nfrom\n  aws_account as a\n  left join\
+      \ filter_data as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S14
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S13.output.rows if ( x[context.steps.S13.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S13.output.rows
+
+      check.name = "#4.7 Ensure a log metric filter and alarm exist for disabling
+      or scheduled deletion of customer created CMKs"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for changes to
+    S3 bucket policies.
+  text: '#4.8 Ensure a log metric filter and alarm exist for S3 bucket policy changes'
+- action: core.sql
+  desc: Description
+  id: S15
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging as is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern,\n    filter.metric_transformation_name\n  from\n\
+      \    aws_cloudtrail_trail as trail,\n    json_each(trail.event_selectors) as\
+      \ se,\n    aws_cloudwatch_log_metric_filter as filter,\n    aws_cloudwatch_alarm\
+      \ as alarm,\n    json_each(alarm.alarm_actions) as action_arn,\n    aws_sns_topic_subscription\
+      \ as subscription\n  where\n    trail.is_multi_region_trail is true\n    and\
+      \ trail.is_logging\n    and json_extract(se.value,'$.ReadWriteType') = 'All'\n\
+      \    and trail.log_group_arn is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventSource\\\
+      s*=\\s*s3.amazonaws.com.+\\$\\.eventName\\s*=\\s*PutBucketAcl.+\\$\\.eventName\\\
+      s*=\\s*PutBucketPolicy.+\\$\\.eventName\\s*=\\s*PutBucketCors.+\\$\\.eventName\\\
+      s*=\\s*PutBucketLifecycle.+\\$\\.eventName\\s*=\\s*PutBucketReplication.+\\\
+      $\\.eventName\\s*=\\s*DeleteBucketPolicy.+\\$\\.eventName\\s*=\\s*DeleteBucketCors.+\\\
+      $\\.eventName\\s*=\\s*DeleteBucketLifecycle.+\\$\\.eventName\\s*=\\s*DeleteBucketReplication')\n\
+      \    and alarm.metric_name = filter.metric_transformation_name\n    and subscription.topic_arn\
+      \ = action_arn.value\n)\nselect\n  -- Required Columns\n  'arn:' || a.partition\
+      \ || ':::' || a.account_id as resource,\n  case\n    when f.trail_name is null\
+      \ then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when f.trail_name\
+      \ is null then 'No log metric filter and alarm exist for S3 bucket policy changes.'\n\
+      \    else filter_name || ' forwards events for S3 bucket policy changes.'\n\
+      \  end as reason,\n  -- Additional Dimensions\n  a.account_id\nfrom\n  aws_account\
+      \ as a\n  left join filter_data as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S16
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S15.output.rows if ( x[context.steps.S15.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S15.output.rows
+
+      check.name = "#4.8 Ensure a log metric filter and alarm exist for S3 bucket
+      policy changes"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for detecting
+    changes to CloudTrail's configurations.
+  text: '#4.9 Ensure a log metric filter and alarm exist for AWS Config configuration
+    changes'
+- action: core.sql
+  desc: Description
+  id: S17
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventSource\\\
+      s*=\\s*config.amazonaws.com.+\\$\\.eventName\\s*=\\s*StopConfigurationRecorder.+\\\
+      $\\.eventName\\s*=\\s*DeleteDeliveryChannel.+\\$\\.eventName\\s*=\\s*PutDeliveryChannel.+\\\
+      $\\.eventName\\s*=\\s*PutConfigurationRecorder')\n    and alarm.metric_name\
+      \ = filter.metric_transformation_name\n    and subscription.topic_arn = action_arn.value\n\
+      )\nselect\n  -- Required Columns\n  'arn:' || a.partition || ':::' || a.account_id\
+      \ as resource,\n  case\n    when f.trail_name is null then 'alarm'\n    else\
+      \ 'ok'\n  end as status,\n  case\n    when f.trail_name is null then 'No log\
+      \ metric filter and alarm exist for AWS Config configuration changes.'\n   \
+      \ else filter_name || ' forwards events for AWS Config configuration changes.'\n\
+      \  end as reason,\n  -- Additional Dimensions\n  a.account_id\nfrom\n  aws_account\
+      \ as a\n  left join filter_data as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S18
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S17.output.rows if ( x[context.steps.S17.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S17.output.rows
+
+      check.name = "#4.9 Ensure a log metric filter and alarm exist for AWS Config
+      configuration changes"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    Security Groups are a stateful packet filter that controls ingress and egress
+    traffic within a VPC. It is recommended that a metric filter and alarm be established
+    for detecting changes to Security Groups.
+  text: '#4.10 Ensure a log metric filter and alarm exist for security group changes'
+- action: core.sql
+  desc: Description
+  id: S19
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventName\\\
+      s*=\\s*AuthorizeSecurityGroupIngress.+\\$\\.eventName\\s*=\\s*AuthorizeSecurityGroupEgress.+\\\
+      $\\.eventName\\s*=\\s*RevokeSecurityGroupIngress.+\\$\\.eventName\\s*=\\s*RevokeSecurityGroupEgress.+\\\
+      $\\.eventName\\s*=\\s*CreateSecurityGroup.+\\$\\.eventName\\s*=\\s*DeleteSecurityGroup')\n\
+      \    and alarm.metric_name = filter.metric_transformation_name\n    and subscription.topic_arn\
+      \ = action_arn.value\n)\nselect\n  -- Required Columns\n  'arn:' || a.partition\
+      \ || ':::' || a.account_id as resource,\n  case\n    when f.trail_name is null\
+      \ then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when f.trail_name\
+      \ is null then 'No log metric filter and alarm exist for security group changes.'\n\
+      \    else filter_name || ' forwards events for security group changes.'\n  end\
+      \ as reason,\n  -- Additional Dimensions\n  a.account_id\nfrom\n  aws_account\
+      \ as a\n  left join filter_data as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S20
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S19.output.rows if ( x[context.steps.S19.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S19.output.rows
+
+      check.name = "#4.10 Ensure a log metric filter and alarm exist for security
+      group changes"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    NACLs are used as a stateless packet filter to control ingress and egress traffic
+    for subnets within a VPC. It is recommended that a metric filter and alarm be
+    established for changes made to NACLs.
+  text: '#4.11 Ensure a log metric filter and alarm exist for changes to Network Access
+    Control Lists (NACL)'
+- action: core.sql
+  desc: Description
+  id: S21
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventName\\\
+      s*=\\s*CreateNetworkAcl.+\\$\\.eventName\\s*=\\s*CreateNetworkAclEntry.+\\$\\\
+      .eventName\\s*=\\s*DeleteNetworkAcl.+\\$\\.eventName\\s*=\\s*DeleteNetworkAclEntry.+\\\
+      $\\.eventName\\s*=\\s*ReplaceNetworkAclEntry.+\\$\\.eventName\\s*=\\s*ReplaceNetworkAclAssociation')\n\
+      \    and alarm.metric_name = filter.metric_transformation_name\n    and subscription.topic_arn\
+      \ = action_arn.value\n)\nselect\n  -- Required Columns\n  'arn:' || a.partition\
+      \ || ':::' || a.account_id as resource,\n  case\n    when f.trail_name is null\
+      \ then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when f.trail_name\
+      \ is null then 'No log metric filter and alarm exist for changes to NACLs.'\n\
+      \    else filter_name || ' forwards events for changes to NACLs.'\n  end as\
+      \ reason,\n  -- Additional Dimensions\n  a.account_id\nfrom\n  aws_account as\
+      \ a\n  left join filter_data as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S22
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S21.output.rows if ( x[context.steps.S21.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S21.output.rows
+
+      check.name = "#4.11 Ensure a log metric filter and alarm exist for changes to
+      Network Access Control Lists (NACL)"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    Network gateways are required to send/receive traffic to a destination outside
+    of a VPC. It is recommended that a metric filter and alarm be established for
+    changes to network gateways.
+  text: '#4.12 Ensure a log metric filter and alarm exist for changes to network gateways'
+- action: core.sql
+  desc: Description
+  id: S23
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    alarm.name as alarm_name,\n   \
+      \ subscription.subscription_arn,\n    filter.filter_pattern\n  from\n    aws_cloudtrail_trail\
+      \ as trail,\n    json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventName\\\
+      s*=\\s*CreateCustomerGateway.+\\$\\.eventName\\s*=\\s*DeleteCustomerGateway.+\\\
+      $\\.eventName\\s*=\\s*AttachInternetGateway.+\\$\\.eventName\\s*=\\s*CreateInternetGateway.+\\\
+      $\\.eventName\\s*=\\s*DeleteInternetGateway.+\\$\\.eventName\\s*=\\s*DetachInternetGateway')\n\
+      \    and alarm.metric_name = filter.metric_transformation_name\n    and subscription.topic_arn\
+      \ = action_arn.value\n)\nselect\n  -- Required Columns\n  'arn:' || a.partition\
+      \ || ':::' || a.account_id as resource,\n  case\n    when f.trail_name is null\
+      \ then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when f.trail_name\
+      \ is null then 'No log metric filter and alarm exist for changes to network\
+      \ gateways.'\n    else filter_name || ' forwards events for changes to network\
+      \ gateways.'\n  end as reason,\n  -- Additional Dimensions\n  a.account_id\n\
+      from\n  aws_account as a\n  left join filter_data as f on a.account_id = f.account_id\n\
+      limit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S24
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S23.output.rows if ( x[context.steps.S23.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S23.output.rows
+
+      check.name = "#4.12 Ensure a log metric filter and alarm exist for changes to
+      network gateways"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    Routing tables are used to route network traffic between subnets and to network
+    gateways. It is recommended that a metric filter and alarm be established for
+    changes to route tables.
+  text: '#4.13 Ensure a log metric filter and alarm exist for route table changes'
+- action: core.sql
+  desc: Description
+  id: S25
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    alarm.name as alarm_name,\n   \
+      \ subscription.subscription_arn,\n    filter.filter_pattern\n  from\n    aws_cloudtrail_trail\
+      \ as trail,\n    json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventName\\\
+      s*=\\s*CreateRoute.+\\$\\.eventName\\s*=\\s*CreateRouteTable.+\\$\\.eventName\\\
+      s*=\\s*ReplaceRoute.+\\$\\.eventName\\s*=\\s*ReplaceRouteTableAssociation.+\\\
+      $\\.eventName\\s*=\\s*DeleteRouteTable.+\\$\\.eventName\\s*=\\s*DeleteRoute.+\\\
+      $\\.eventName\\s*=\\s*DisassociateRouteTable')\n    and alarm.metric_name =\
+      \ filter.metric_transformation_name\n    and subscription.topic_arn = action_arn.value\n\
+      )\nselect\n  -- Required Columns\n  'arn:' || a.partition || ':::' || a.account_id\
+      \ as resource,\n  case\n    when f.trail_name is null then 'alarm'\n    else\
+      \ 'ok'\n  end as status,\n  case\n    when f.trail_name is null then 'No log\
+      \ metric filter and alarm exist for route table changes.'\n    else filter_name\
+      \ || ' forwards events for route table changes.'\n  end as reason,\n  -- Additional\
+      \ Dimensions\n  a.account_id\nfrom\n  aws_account as a\n  left join filter_data\
+      \ as f on a.account_id = f.account_id\nlimit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S26
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S25.output.rows if ( x[context.steps.S25.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S25.output.rows
+
+      check.name = "#4.13 Ensure a log metric filter and alarm exist for route table
+      changes"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is possible to have more than 1 VPC within an account, in addition it is also
+    possible to create a peer connection between 2 VPCs enabling network traffic to
+    route between VPCs. It is recommended that a metric filter and alarm be established
+    for changes made to VPCs.
+  text: '#4.14 Ensure a log metric filter and alarm exist for VPC changes'
+- action: core.sql
+  desc: Description
+  id: S27
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    alarm.name as alarm_name,\n   \
+      \ subscription.subscription_arn,\n    filter.filter_pattern\n  from\n    aws_cloudtrail_trail\
+      \ as trail,\n    json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventName\\\
+      s*=\\s*CreateVpc.+\\$\\.eventName\\s*=\\s*DeleteVpc.+\\$\\.eventName\\s*=\\\
+      s*ModifyVpcAttribute.+\\$\\.eventName\\s*=\\s*AcceptVpcPeeringConnection.+\\\
+      $\\.eventName\\s*=\\s*CreateVpcPeeringConnection.+\\$\\.eventName\\s*=\\s*DeleteVpcPeeringConnection.+\\\
+      $\\.eventName\\s*=\\s*RejectVpcPeeringConnection.+\\$\\.eventName\\s*=\\s*AttachClassicLinkVpc.+\\\
+      $\\.eventName\\s*=\\s*DetachClassicLinkVpc.+\\$\\.eventName\\s*=\\s*DisableVpcClassicLink.+\\\
+      $\\.eventName\\s*=\\s*EnableVpcClassicLink')\n    and alarm.metric_name = filter.metric_transformation_name\n\
+      \    and subscription.topic_arn = action_arn.value\n)\nselect\n  -- Required\
+      \ Columns\n  'arn:' || a.partition || ':::' || a.account_id as resource,\n \
+      \ case\n    when f.trail_name is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when f.trail_name is null then 'No log metric filter\
+      \ and alarm exist for VPC changes.'\n    else filter_name || ' forwards events\
+      \ for VPC changes.'\n  end as reason,\n  -- Additional Dimensions\n  a.account_id\n\
+      from\n  aws_account as a\n  left join filter_data as f on a.account_id = f.account_id\n\
+      limit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S28
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S27.output.rows if ( x[context.steps.S27.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S27.output.rows
+
+      check.name = "#4.14 Ensure a log metric filter and alarm exist for VPC changes"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+    Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+    It is recommended that a metric filter and alarm be established for AWS Organizations
+    changes made in the master AWS Account.
+  text: '#4.15 Ensure a log metric filter and alarm exists for AWS Organizations changes'
+- action: core.sql
+  desc: Description
+  id: S29
+  inputs:
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    alarm.name as alarm_name,\n   \
+      \ subscription.subscription_arn,\n    filter.filter_pattern\n  from\n    aws_cloudtrail_trail\
+      \ as trail,\n    json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.eventSource\\\
+      s*=\\s*organizations.amazonaws.com.+\\$\\.eventName\\s*=\\s*AcceptHandshake.+\\\
+      $\\.eventName\\s*=\\s*AttachPolicy.+\\$\\.eventName\\s*=\\s*CreateAccount.+\\\
+      $\\.eventName\\s*=\\s*CreateOrganizationalUnit.+\\$\\.eventName\\s*=\\s*CreatePolicy.+\\\
+      $\\.eventName\\s*=\\s*DeclineHandshake.+\\$\\.eventName\\s*=\\s*DeleteOrganization.+\\\
+      $\\.eventName\\s*=\\s*DeleteOrganizationalUnit.+\\$\\.eventName\\s*=\\s*DeletePolicy.+\\\
+      $\\.eventName\\s*=\\s*DetachPolicy.+\\$\\.eventName\\s*=\\s*DisablePolicyType.+\\\
+      $\\.eventName\\s*=\\s*EnablePolicyType.+\\$\\.eventName\\s*=\\s*InviteAccountToOrganization.+\\\
+      $\\.eventName\\s*=\\s*LeaveOrganization.+\\$\\.eventName\\s*=\\s*MoveAccount.+\\\
+      $\\.eventName\\s*=\\s*RemoveAccountFromOrganization.+\\$\\.eventName\\s*=\\\
+      s*UpdatePolicy.+\\$\\.eventName\\s*=\\s*UpdateOrganizationalUnit')\n    and\
+      \ alarm.metric_name = filter.metric_transformation_name\n    and subscription.topic_arn\
+      \ = action_arn.value\n)\nselect\n  -- Required Columns\n  'arn:' || a.partition\
+      \ || ':::' || a.account_id as resource,\n  case\n    when f.trail_name is null\
+      \ then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when f.trail_name\
+      \ is null then 'No log metric filter and alarm exists for AWS Organizations\
+      \ changes.'\n    else filter_name || ' forwards relevant events for AWS Organizations\
+      \ changes.'\n  end as reason,\n  -- Additional Dimensions\n  a.account_id\n\
+      from\n  aws_account as a\n  left join filter_data as f on a.account_id = f.account_id\n\
+      limit 1\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S30
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S29.output.rows if ( x[context.steps.S29.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S29.output.rows
+
+      check.name = "#4.15 Ensure a log metric filter and alarm exists for AWS Organizations
+      changes"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  cis_v130_4\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  cis_v130_4 Check results \",\"type\":\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\n\nstep_ids = ['S2', 'S4', 'S6', 'S8',\
+      \ 'S10', 'S12', 'S14', 'S16', 'S18', 'S20', 'S22', 'S24', 'S26', 'S28', 'S30']\n\
+      for id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
+      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
+      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
+      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
+      \\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
+tags: []
+type: Flow

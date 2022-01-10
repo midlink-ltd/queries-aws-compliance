@@ -1,0 +1,350 @@
+connections:
+  aws: aws_connection
+desc: ''
+name: cis_v140_2_3
+steps:
+- desc: example description delete afterwards
+  description: Amazon S3 provides a variety of no, or low, cost encryption options
+    to protect data at rest.
+  text: '#2.1.1 Ensure all S3 buckets employ encryption-at-rest'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ server_side_encryption_configuration is not null then 'ok'\n    else 'alarm'\n\
+      \  end status,\n  case\n    when server_side_encryption_configuration is not\
+      \ null then name || ' default encryption enabled.'\n    else name || ' default\
+      \ encryption disabled.'\n  end reason,\n  -- Additional Dimensions\n  region,\n\
+      \  account_id\nfrom\n  aws_s3_bucket"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S2
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#2.1.1 Ensure all S3 buckets employ encryption-at-rest"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: At the Amazon S3 bucket level, you can configure permissions through
+    a bucket policy making the objects accessible only through HTTPS.
+  text: '#2.1.2 Ensure S3 Bucket Policy is set to deny HTTP requests'
+- action: core.sql
+  desc: Description
+  id: S3
+  inputs:
+    sql: " \n with ssl_ok as (\n  select\n    distinct name,\n    arn,\n    'ok' as\
+      \ status\n  from\n    aws_s3_bucket,\n    json_each(policy_std, '$.Statement')\
+      \ as s,\n    json_each(s.value, '$.Principal.AWS') as p,\n    json_each(s.value,\
+      \ '$.Action') as a,\n    json_each(s.value, '$.Resource') as r,\n    json_each(\n\
+      \      s.value, '$.Condition.Bool.aws:securetransport\n    ') as ssl\n  where\n\
+      \    p.value = '*'\n    and json_extract(s.value,'$.Effect') = 'Deny'\n    and\
+      \ cast(ssl.value as bool) = false\n)\nselect\n  -- Required Columns\n  b.arn\
+      \ as resource,\n  case\n    when ok.status = 'ok' then 'ok'\n    else 'alarm'\n\
+      \  end status,\n  case\n    when ok.status = 'ok' then b.name || ' bucket policy\
+      \ enforces HTTPS.'\n    else b.name || ' bucket policy does not enforce HTTPS.'\n\
+      \  end reason,\n  -- Additional Dimensions\n  b.region,\n  b.account_id\nfrom\n\
+      \  aws_s3_bucket as b\n  left join ssl_ok as ok on ok.name = b.name;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S4
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#2.1.2 Ensure S3 Bucket Policy is set to deny HTTP requests"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Once MFA Delete is enable on your sensitive and classified S3 bucket
+    it requires the user to have two forms of authentication.
+  text: '#2.1.3 Ensure MFA Delete is enable on S3 buckets'
+- action: core.sql
+  desc: Description
+  id: S5
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ versioning_mfa_delete then 'ok'\n    else 'alarm'\n  end status,\n  case\n\
+      \    when versioning_mfa_delete then name || ' MFA delete enabled.'\n    else\
+      \ name || ' MFA delete disabled.'\n  end reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_s3_bucket;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S6
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#2.1.3 Ensure MFA Delete is enable on S3 buckets"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Amazon S3 buckets can contain sensitive data, that for security purposes
+    should be discovered, monitored, classified and protected. Macie along with other
+    3rd party tools can automatically provide an inventory of Amazon S3 buckets.
+  text: '#2.1.4 Ensure all data in Amazon S3 has been discovered, classified and secured
+    when required'
+- action: core.sql
+  desc: Description
+  id: S7
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  'arn:' || partition || ':::' || account_id\
+      \ as resource,\n  'info' as status,\n  'Manual verification required.' as reason,\n\
+      \  -- Additional Dimensions\n  account_id\nfrom\n  aws_account;\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S8
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S7.output.rows if ( x[context.steps.S7.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S7.output.rows
+
+      check.name = "#2.1.4 Ensure all data in Amazon S3 has been discovered, classified
+      and secured when required"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Amazon S3 provides Block public access (bucket settings) and Block
+    public access (account settings) to help you manage public access to Amazon S3
+    resources. By default, S3 buckets and objects are created with public access disabled.
+    However, an IAM principle with sufficient S3 permissions can enable public access
+    at the bucket and/or object level. While enabled, Block public access (bucket
+    settings) prevents an individual bucket, and its contained objects, from becoming
+    publicly accessible. Similarly, Block public access (account settings) prevents
+    all buckets, and contained objects, from becoming publicly accessible across the
+    entire account.
+  text: '#2.1.5 Ensure that S3 Buckets are configured with ''Block public access (bucket
+    settings)'''
+- action: core.sql
+  desc: Description
+  id: S9
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ (bucket.block_public_acls or s3account.block_public_acls)\n      and (bucket.block_public_policy\
+      \ or s3account.block_public_policy)\n      and (bucket.ignore_public_acls or\
+      \ s3account.ignore_public_acls)\n      and (bucket.restrict_public_buckets or\
+      \ s3account.restrict_public_buckets)\n      then 'ok'\n    else 'alarm'\n  end\
+      \ as status,\n  case\n    when (bucket.block_public_acls or s3account.block_public_acls)\n\
+      \      and (bucket.block_public_policy or s3account.block_public_policy)\n \
+      \     and (bucket.ignore_public_acls or s3account.ignore_public_acls)\n    \
+      \  and (bucket.restrict_public_buckets or s3account.restrict_public_buckets)\n\
+      \      then name || ' all public access blocks enabled.'\n    else name || '\
+      \ not enabled for: ' ||\n      concat_ws(', ',\n        case when not (bucket.block_public_acls\
+      \ or s3account.block_public_acls) then 'block_public_acls' end,\n        case\
+      \ when not (bucket.block_public_policy or s3account.block_public_policy) then\
+      \ 'block_public_policy' end,\n        case when not (bucket.ignore_public_acls\
+      \ or s3account.ignore_public_acls) then 'ignore_public_acls' end,\n        case\
+      \ when not (bucket.restrict_public_buckets or s3account.restrict_public_buckets)\
+      \ then 'restrict_public_buckets' end\n      ) || '.'\n  end as reason,\n  --\
+      \ Additional Dimensions\n  bucket.region,\n  bucket.account_id\nfrom\n  aws_s3_bucket\
+      \ as bucket,\n  aws_s3_account_settings as s3account;\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S10
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S9.output.rows if ( x[context.steps.S9.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S9.output.rows
+
+      check.name = "#2.1.5 Ensure that S3 Buckets are configured with ''Block public
+      access (bucket settings)''"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Elastic Compute Cloud (EC2) supports encryption at rest when using
+    the Elastic Block Store (EBS) service. While disabled by default, forcing encryption
+    at EBS volume creation is supported.
+  text: '#2.2.1 Ensure EBS volume encryption is enabled'
+- action: core.sql
+  desc: Description
+  id: S11
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ encrypted then 'ok'\n    else 'alarm'\n  end status,\n  case\n    when encrypted\
+      \ then volume_id || ' encrypted.'\n    else volume_id || ' not encrypted.'\n\
+      \  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_ebs_volume;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S12
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S11.output.rows if ( x[context.steps.S11.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S11.output.rows
+
+      check.name = "#2.2.1 Ensure EBS volume encryption is enabled"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Amazon RDS encrypted DB instances use the industry standard AES-256
+    encryption algorithm to encrypt your data on the server that hosts your Amazon
+    RDS DB instances. After your data is encrypted, Amazon RDS handles authentication
+    of access and decryption of your data transparently with a minimal impact on performance.
+  text: '#2.3.1 Ensure that encryption is enabled for RDS Instances'
+- action: core.sql
+  desc: Description
+  id: S13
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ storage_encrypted then 'ok'\n    else 'alarm'\n  end as status,\n  case\n\
+      \    when storage_encrypted then title || ' encrypted at rest.'\n    else title\
+      \ || ' not encrypted at rest.'\n  end as reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_rds_db_instance;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S14
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S13.output.rows if ( x[context.steps.S13.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S13.output.rows
+
+      check.name = "#2.3.1 Ensure that encryption is enabled for RDS Instances"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  cis_v140_2_3\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  cis_v140_2_3 Check results \",\"type\":\"mrkdwn\"}]}\n\n\
+      message_blocks.append(header)\nmessage_blocks.append(context_section)\n\nstep_ids\
+      \ = ['S2', 'S4', 'S6', 'S8', 'S10', 'S12', 'S14']\nfor id in step_ids:\n  if\
+      \ context.steps[id].status == 'OK':\n    message_blocks.append({\"type\":\"\
+      divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\n\
+      \    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
+      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
+      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
+      \\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
+tags: []
+type: Flow

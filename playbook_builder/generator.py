@@ -23,8 +23,8 @@ def loadTemplate():
 
     return data_map
 
-def writePlaybook(data_map, name):
-    with open(os.path.dirname(__file__) + "/out/"+name, "w") as stream:
+def writePlaybook(data_map,controlName, name):
+    with open(os.path.dirname(__file__) + "/out/"+controlName+"/"+name, "w") as stream:
         try:
             noalias_dumper = yaml.dumper.Dumper
             noalias_dumper.ignore_aliases = lambda self, data: True
@@ -129,7 +129,9 @@ def convertBenchToPlaybook(bench, playbook):
            
         #fill format message
         format_message.id = "S"+str(sectionId+2)
-        format_message.inputs.code = format_message.inputs.code.replace("S1",sql.id ).replace('ControlName',section.text).replace("DefaultSeverity",control['severity'])
+        format_message.inputs.code = format_message.inputs.code.replace("S1",sql.id ).replace('ControlName',section.text)
+        if "severity" in control:
+            format_message.inputs.code = format_message.inputs.code.replace("DefaultSeverity",control['severity'])
         
         playbook["steps"].append(section.toDict())
         playbook["steps"].append(sql.toDict())
@@ -146,17 +148,25 @@ def convertBenchToPlaybook(bench, playbook):
     return playbook
 
 
-def main():
-
-   #controlFile = findControlFile("query.apigateway_rest_api_stage_use_ssl_certificate", "/Users/jon/workspace/blink/queries-aws-compliance/foundational_security")
-    cwd = "/../foundational_security/"
+def generateControlPlaybooks(controlName):
+    cwd = "/../"+controlName+"/"
     for file in os.listdir(os.path.dirname(__file__) + cwd):
         if file.endswith(".sp"):
             benchmark = parseBenchmark(cwd + file)
             data_map = loadTemplate()
     
             playbook = convertBenchToPlaybook(benchmark, data_map)
-            writePlaybook(playbook, benchmark["name"].replace('"','') + ".yaml")
+            writePlaybook(playbook, controlName, benchmark["name"].replace('"','') + ".yaml")
+
+    return
+
+def main():
+
+   #controlFile = findControlFile("query.apigateway_rest_api_stage_use_ssl_certificate", "/Users/jon/workspace/blink/queries-aws-compliance/foundational_security")
+    generateControlPlaybooks("foundational_security")
+    generateControlPlaybooks("cis_v130")
+    generateControlPlaybooks("cis_v140")
+
 
     
 if __name__ == "__main__":

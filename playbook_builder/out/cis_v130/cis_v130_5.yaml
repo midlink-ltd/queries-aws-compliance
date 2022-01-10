@@ -1,0 +1,247 @@
+connections:
+  aws: aws_connection
+desc: ''
+name: cis_v130_5
+steps:
+- desc: example description delete afterwards
+  description: The Network Access Control List (NACL) function provide stateless filtering
+    of ingress and egress network traffic to AWS resources. It is recommended that
+    no NACL allows unrestricted ingress access to remote server administration ports,
+    such as SSH to port 22 and RDP to port 3389.
+  text: '#5.1 Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote server
+    administration ports'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: " \n with bad_rules as (\n  select\n    network_acl_id,\n    count(*) as\
+      \ num_bad_rules\n  from\n    aws_vpc_network_acl,\n    json_each(entries) as\
+      \ att\n  where\n    json_extract(att.value,'$.Egress') = 'false' -- as per aws\
+      \ egress = false indicates the ingress\n    and (\n      json_extract(att.value,'$.CidrBlock')\
+      \ = '0.0.0.0/0'\n      or json_extract(att.value,'$.Ipv6CidrBlock') =  '::/0'\n\
+      \    )\n    and json_extract(att.value,'$.RuleAction') = 'allow'\n    and (\n\
+      \      (\n        json_extract(att.value,'$.Protocol') = '-1' -- all traffic\n\
+      \        and json_extract(att.value,'$.PortRange') is null\n      )\n      or\
+      \ (\n        cast((json_extract(att.value,'$.PortRange.From')) as int) <= 22\n\
+      \        and cast((json_extract(att.value,'$.PortRange.To')) as int) >= 22\n\
+      \        and json_extract(att.value,'$.Protocol') in('6', '17')  -- TCP or UDP\n\
+      \      )\n      or (\n        cast((json_extract(att.value,'$.PortRange.From'))\
+      \ as int) <= 3389\n        and cast((json_extract(att.value,'$.PortRange.To'))\
+      \ as int) >= 3389\n        and json_extract(att.value,'$.Protocol') in('6',\
+      \ '17')  -- TCP or UDP\n    )\n  )\n  group by\n    network_acl_id\n)\n\nselect\n\
+      \  -- Required Columns\n  'arn:' || acl.partition || ':ec2:' || acl.region ||\
+      \ ':' || acl.account_id || ':network-acl/' || acl.network_acl_id  as resource,\n\
+      \  case\n    when bad_rules.network_acl_id is null then 'ok'\n    else 'alarm'\n\
+      \  end as status,\n  case\n    when bad_rules.network_acl_id is null then acl.network_acl_id\
+      \ || ' does not allow ingress to port 22 or 3389 from 0.0.0.0/0 or ::/0.'\n\
+      \    else acl.network_acl_id || ' contains ' || bad_rules.num_bad_rules || '\
+      \ rule(s) allowing ingress to port 22 or 3389 from 0.0.0.0/0 or ::/0.'\n  end\
+      \ as reason,\n  -- Additional Dimensions\n  acl.region,\n  acl.account_id\n\
+      from\t\n  aws_vpc_network_acl as acl\n  left join bad_rules on bad_rules.network_acl_id\
+      \ = acl.network_acl_id\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S2
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#5.1 Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote
+      server administration ports"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Security groups provide stateful filtering of ingress and egress network
+    traffic to AWS resources. It is recommended that no security group allows unrestricted
+    ingress access to remote server administration ports, such as SSH to port 22 and
+    RDP to port 3389.
+  text: '#5.2 Ensure no security groups allow ingress from 0.0.0.0/0 to remote server
+    administration ports'
+- action: core.sql
+  desc: Description
+  id: S3
+  inputs:
+    sql: " \n with bad_rules as (\n  select\n    group_id,\n    count(*) as num_bad_rules\n\
+      \  from\n    aws_vpc_security_group_rule\n  where\n    type = 'ingress'\n  \
+      \  and (\n      cidr_ip = '0.0.0.0/0'\n      or cidr_ipv6 = '::/0'\n    )\n\
+      \    and (\n        ( ip_protocol = '-1'      -- all traffic\n        and from_port\
+      \ is null\n        )\n        or (\n            from_port >= 22\n          \
+      \  and to_port <= 22\n        )\n        or (\n            from_port >= 3389\n\
+      \            and to_port <= 3389\n        )\n    )\n  group by\n    group_id\n\
+      )\nselect\n  -- Required Columns\n  arn as resource,\n  case\n    when bad_rules.group_id\
+      \ is null then 'ok'\n    else 'alarm'\n  end as status,\n  case\n    when bad_rules.group_id\
+      \ is null then sg.group_id || ' does not allow ingress to port 22 or 3389 from\
+      \ 0.0.0.0/0 or ::/0.'\n    else  sg.group_id || ' contains ' || bad_rules.num_bad_rules\
+      \ || ' rule(s) that allow ingress to port 22 or 3389 from 0.0.0.0/0 or ::/0.'\n\
+      \  end as reason,\n  -- Additional Dimensions\n  sg.region,\n  sg.account_id\n\
+      from\t\n  aws_vpc_security_group as sg\n  left join bad_rules on bad_rules.group_id\
+      \ = sg.group_id\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S4
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#5.2 Ensure no security groups allow ingress from 0.0.0.0/0 to
+      remote server administration ports"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: A VPC comes with a default security group whose initial settings deny
+    all inbound traffic, allow all outbound traffic, and allow all traffic between
+    instances assigned to the security group. If you don't specify a security group
+    when you launch an instance, the instance is automatically assigned to this default
+    security group. Security groups provide stateful filtering of ingress/egress network
+    traffic to AWS resources. It is recommended that the default security group restrict
+    all traffic.
+  text: '#5.3 Ensure the default security group of every VPC restricts all traffic'
+- action: core.sql
+  desc: Description
+  id: S5
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn resource,\n  case\n    when ip_permissions\
+      \ is null and ip_permissions_egress is null then 'ok'\n    else 'alarm'\n  end\
+      \ status,\n  case\n    when ip_permissions is not null and ip_permissions_egress\
+      \ is not null\n      then 'Default security group ' || group_id || ' has inbound\
+      \ and outbound rules.'\n    when ip_permissions is not null and ip_permissions_egress\
+      \ is null\n      then 'Default security group ' || group_id || ' has inbound\
+      \ rules.'\n    when ip_permissions is null and ip_permissions_egress is not\
+      \ null\n      then 'Default security group ' || group_id || ' has outbound rules.'\n\
+      \    else 'Default security group ' || group_id || ' has no inbound or outbound\
+      \ rules.'\n  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
+      from\n  aws_vpc_security_group\nwhere\n  group_name = 'default';\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S6
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#5.3 Ensure the default security group of every VPC restricts
+      all traffic"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: A VPC comes with a default security group whose initial settings deny
+    all inbound traffic, allow all outbound traffic, and allow all traffic between
+    instances assigned to the security group. If you don't specify a security group
+    when you launch an instance, the instance is automatically assigned to this default
+    security group. Security groups provide stateful filtering of ingress/egress network
+    traffic to AWS resources. It is recommended that the default security group restrict
+    all traffic.
+  text: '#5.4 Ensure routing tables for VPC peering are ''least access'''
+- action: core.sql
+  desc: Description
+  id: S7
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  'arn:' || partition || ':::' || account_id\
+      \ as resource,\n  'info' as status,\n  'Manual verification required.' as reason,\n\
+      \  -- Additional Dimensions\n  account_id\nfrom\n  aws_account;\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S8
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S7.output.rows if ( x[context.steps.S7.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S7.output.rows
+
+      check.name = "#5.4 Ensure routing tables for VPC peering are ''least access''"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  cis_v130_5\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  cis_v130_5 Check results \",\"type\":\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\n\nstep_ids = ['S2', 'S4', 'S6', 'S8']\n\
+      for id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
+      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
+      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
+      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
+      \\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
+tags: []
+type: Flow

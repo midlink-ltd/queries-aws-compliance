@@ -1,0 +1,164 @@
+connections:
+  aws: aws_connection
+desc: ''
+name: cis_v130_2_2
+steps:
+- desc: example description delete afterwards
+  description: Amazon S3 provides a variety of no, or low, cost encryption options
+    to protect data at rest.
+  text: '#2.1.1 Ensure all S3 buckets employ encryption-at-rest'
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ server_side_encryption_configuration is not null then 'ok'\n    else 'alarm'\n\
+      \  end status,\n  case\n    when server_side_encryption_configuration is not\
+      \ null then name || ' default encryption enabled.'\n    else name || ' default\
+      \ encryption disabled.'\n  end reason,\n  -- Additional Dimensions\n  region,\n\
+      \  account_id\nfrom\n  aws_s3_bucket"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S2
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#2.1.1 Ensure all S3 buckets employ encryption-at-rest"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: At the Amazon S3 bucket level, you can configure permissions through
+    a bucket policy making the objects accessible only through HTTPS.
+  text: '#2.1.2 Ensure S3 Bucket Policy allows HTTPS requests'
+- action: core.sql
+  desc: Description
+  id: S3
+  inputs:
+    sql: " \n with ssl_ok as (\n  select\n    distinct name,\n    arn,\n    'ok' as\
+      \ status\n  from\n    aws_s3_bucket,\n    json_each(policy_std, '$.Statement')\
+      \ as s,\n    json_each(s.value, '$.Principal.AWS') as p,\n    json_each(s.value,\
+      \ '$.Action') as a,\n    json_each(s.value, '$.Resource') as r,\n    json_each(\n\
+      \      s.value, '$.Condition.Bool.aws:securetransport\n    ') as ssl\n  where\n\
+      \    p.value = '*'\n    and json_extract(s.value,'$.Effect') = 'Deny'\n    and\
+      \ cast(ssl.value as bool) = false\n)\nselect\n  -- Required Columns\n  b.arn\
+      \ as resource,\n  case\n    when ok.status = 'ok' then 'ok'\n    else 'alarm'\n\
+      \  end status,\n  case\n    when ok.status = 'ok' then b.name || ' bucket policy\
+      \ enforces HTTPS.'\n    else b.name || ' bucket policy does not enforce HTTPS.'\n\
+      \  end reason,\n  -- Additional Dimensions\n  b.region,\n  b.account_id\nfrom\n\
+      \  aws_s3_bucket as b\n  left join ssl_ok as ok on ok.name = b.name;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S4
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#2.1.2 Ensure S3 Bucket Policy allows HTTPS requests"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  description: Elastic Compute Cloud (EC2) supports encryption at rest when using
+    the Elastic Block Store (EBS) service. While disabled by default, forcing encryption
+    at EBS volume creation is supported.
+  text: '#2.2.1 Ensure EBS volume encryption is enabled'
+- action: core.sql
+  desc: Description
+  id: S5
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ encrypted then 'ok'\n    else 'alarm'\n  end status,\n  case\n    when encrypted\
+      \ then volume_id || ' encrypted.'\n    else volume_id || ' not encrypted.'\n\
+      \  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_ebs_volume;"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S6
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#2.2.1 Ensure EBS volume encryption is enabled"
+
+      check.severity = "DefaultSeverity"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  cis_v130_2_2\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  cis_v130_2_2 Check results \",\"type\":\"mrkdwn\"}]}\n\n\
+      message_blocks.append(header)\nmessage_blocks.append(context_section)\n\nstep_ids\
+      \ = ['S2', 'S4', 'S6']\nfor id in step_ids:\n  if context.steps[id].status ==\
+      \ 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
+      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
+      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
+      \  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
+tags: []
+type: Flow
