@@ -1,81 +1,141 @@
 connections:
-  aws: ''
+  aws: aws_connection
 desc: ''
-name: '"foundational_security_cloudfront"'
+name: foundational_security_cloudfront
 steps:
 - desc: example description delete afterwards
-  text: '#4 CloudFront distributions should have origin failover configured'
+  description: This control checks whether an Amazon CloudFront distribution is configured
+    to return a specific object that is the default root object. The control fails
+    if the CloudFront distribution does not have a default root object configured.
+  text: '#1 CloudFront distributions should have a default root object configured'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ json_extract(origin_groups,'$.Items') is not null then 'ok'\n    else 'alarm'\n\
-      \  end as status,\n  case\n    when json_extract(origin_groups,'$.Items') is\
-      \ not null then title || ' origin group is configured.'\n    else title || '\
-      \ origin group not configured.'\n  end as reason,\n  -- Additional Dimensions\n\
-      \  region,\n  account_id\nfrom\n  aws_cloudfront_distribution;"
+      \ default_root_object = '' then 'alarm'\n    else 'ok'\n  end as status,\n \
+      \ case\n    when default_root_object = '' then title || ' default root object\
+      \ not configured.'\n    else title || ' default root object configured.'\n \
+      \ end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_cloudfront_distribution;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S2
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S1.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#1 CloudFront distributions should have a default root object
+      configured"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#4 CloudFront distributions should have origin failover configured'
+  description: This control checks whether an Amazon CloudFront distribution with
+    Amazon S3 Origin type has Origin Access Identity (OAI) configured. The control
+    fails if OAI is not configured.
+  text: '#2 CloudFront distributions should have origin access identity enabled'
 - action: core.sql
   desc: Description
   id: S3
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ json_extract(origin_groups,'$.Items') is not null then 'ok'\n    else 'alarm'\n\
-      \  end as status,\n  case\n    when json_extract(origin_groups,'$.Items') is\
-      \ not null then title || ' origin group is configured.'\n    else title || '\
-      \ origin group not configured.'\n  end as reason,\n  -- Additional Dimensions\n\
-      \  region,\n  account_id\nfrom\n  aws_cloudfront_distribution;"
+      \ json_extract(o.value,'$.DomainName') not like '%s3.amazonaws.com' then 'skip'\n\
+      \    when json_extract(o.value,'$.DomainName') like '%s3.amazonaws.com'\n  \
+      \  and json_extract(o.value,'$.S3OriginConfig.OriginAccessIdentity') = '' then\
+      \ 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when json_extract(o.value,'$.DomainName')\
+      \ not like '%s3.amazonaws.com' then title || ' origin type is not s3.'\n   \
+      \ when json_extract(o.value,'$.DomainName') like '%s3.amazonaws.com'\n    and\
+      \ json_extract(o.value,'$.S3OriginConfig.OriginAccessIdentity') = '' then title\
+      \ || ' origin access identity not configured.'\n    else title || ' origin access\
+      \ identity configured.'\n  end as reason,\n  -- Additional Dimensions\n  region,\n\
+      \  account_id\nfrom\n  aws_cloudfront_distribution,\n  json_each(origins) as\
+      \ o;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S4
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S3.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#2 CloudFront distributions should have origin access identity
+      enabled"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#4 CloudFront distributions should have origin failover configured'
+  text: '#3 CloudFront distributions should require encryption in transit - Not implemented'
 - action: core.sql
   desc: Description
   id: S5
   inputs:
-    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ json_extract(origin_groups,'$.Items') is not null then 'ok'\n    else 'alarm'\n\
-      \  end as status,\n  case\n    when json_extract(origin_groups,'$.Items') is\
-      \ not null then title || ' origin group is configured.'\n    else title || '\
-      \ origin group not configured.'\n  end as reason,\n  -- Additional Dimensions\n\
-      \  region,\n  account_id\nfrom\n  aws_cloudfront_distribution;"
+    sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S6
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S5.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#3 CloudFront distributions should require encryption in transit
+      - Not implemented"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
+  description: This control checks whether an Amazon CloudFront distribution is configured
+    with an origin group that has two or more origins. CloudFront origin failover
+    can increase availability. Origin failover automatically redirects traffic to
+    a secondary origin if the primary origin is unavailable or if it returns specific
+    HTTP response status codes.
   text: '#4 CloudFront distributions should have origin failover configured'
 - action: core.sql
   desc: Description
@@ -88,16 +148,60 @@ steps:
       \ origin group not configured.'\n  end as reason,\n  -- Additional Dimensions\n\
       \  region,\n  account_id\nfrom\n  aws_cloudfront_distribution;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S8
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S7.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S7.output.rows if ( x[context.steps.S7.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S7.output.rows
+
+      check.name = "#4 CloudFront distributions should have origin failover configured"
+
+      check.severity = "low"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_cloudfront\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  foundational_security_cloudfront Check results \",\"type\"\
+      :\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \nstep_ids = ['S2', 'S4', 'S6', 'S8']\nfor id in step_ids:\n  if context.steps[id].status\
+      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    steps = context.steps\n    section.text.text\
+      \ = context.steps[id].output.name[:72].ljust(72, ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \" :x:\\n\".rjust(91 - len(section.text.text),'\
+      \ ')\n    else:\n       section.text.text +=  \" :white_check_mark:\\n\".rjust(91\
+      \ - len(section.text.text),' ')\n    message_blocks.append(section.toDict().copy())\n\
+      \n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
 tags: []
 type: Flow

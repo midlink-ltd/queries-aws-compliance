@@ -3,5 +3,5 @@ type: Flow
 tags: []
 desc: ""
 connections:
-  aws: ""
+  aws: "aws_connection"
 steps: []

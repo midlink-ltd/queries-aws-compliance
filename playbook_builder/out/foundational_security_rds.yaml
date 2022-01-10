@@ -1,236 +1,533 @@
 connections:
-  aws: ''
+  aws: aws_connection
 desc: ''
-name: '"foundational_security_rds"'
+name: foundational_security_rds
 steps:
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: This control checks whether Amazon RDS snapshots are public. This control
+    is intended for RDS instances. It can also return findings for snapshots of Aurora
+    DB instances, Neptune DB instances, and Amazon DocumentDB clusters, even though
+    they are not evaluated for public accessibility. If these findings are not useful,
+    you can suppress them.
+  text: '#1 RDS snapshots should be private'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: ''
+    sql: " \n \nselect\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ json_extract(cluster_snapshot.value,'$.AttributeValues') = '[\"all\"]' then\
+      \ 'alarm'\n    else 'ok'\n  end status,\n  case\n    when json_extract(cluster_snapshot.value,'$.AttributeValues')\
+      \ = '[\"all\"]' then title || ' publicly restorable.'\n    else title || ' not\
+      \ publicly restorable.'\n  end reason,\n  -- Additional Dimensions\n  region,\n\
+      \  account_id\nfrom\n  aws_rds_db_cluster_snapshot,\n  json_each(db_cluster_snapshot_attributes)\
+      \ as cluster_snapshot\n\nunion\n\nselect\n  -- Required Columns\n  arn as resource,\n\
+      \  case\n    when json_extract(database_snapshot.value,'$.AttributeValues')\
+      \ = '[\"all\"]' then 'alarm'\n    else 'ok'\n  end status,\n  case\n    when\
+      \ json_extract(database_snapshot.value,'$.AttributeValues') = '[\"all\"]' then\
+      \ title || ' publicly restorable.'\n    else title || ' not publicly restorable.'\n\
+      \  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_rds_db_snapshot,\n  json_each(db_snapshot_attributes) as database_snapshot\n\
+      ;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S2
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S1.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#1 RDS snapshots should be private"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: 'This control checks whether Amazon RDS instances are publicly accessible
+    by evaluating the PubliclyAccessible field in the instance configuration item.
+    Neptune DB instances and Amazon DocumentDB clusters do not have the PubliclyAccessible
+    flag and cannot be evaluated. However, this control can still generate findings
+    for these resources. You can suppress these findings. '
+  text: '#2 RDS DB instances should prohibit public access, determined by the PubliclyAccessible
+    configuration'
 - action: core.sql
   desc: Description
   id: S3
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ publicly_accessible then 'alarm'\n    else 'ok'\n  end status,\n  case\n \
+      \   when publicly_accessible then title || ' publicly accessible.'\n    else\
+      \ title || ' not publicly accessible.'\n  end reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_rds_db_instance;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S4
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S3.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#2 RDS DB instances should prohibit public access, determined
+      by the PubliclyAccessible configuration"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: This control checks whether storage encryption is enabled for your
+    Amazon RDS DB instances. This control is intended for RDS DB instances. However,
+    it can also generate findings for Aurora DB instances, Neptune DB instances, and
+    Amazon DocumentDB clusters. If these findings are not useful, then you can suppress
+    them.
+  text: '#3 RDS DB instances should have encryption at rest enabled'
 - action: core.sql
   desc: Description
   id: S5
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ storage_encrypted then 'ok'\n    else 'alarm'\n  end as status,\n  case\n\
+      \    when storage_encrypted then title || ' encrypted at rest.'\n    else title\
+      \ || ' not encrypted at rest.'\n  end as reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_rds_db_instance;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S6
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S5.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#3 RDS DB instances should have encryption at rest enabled"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: This control checks whether RDS DB snapshots are encrypted. This control
+    is intended for RDS DB instances. However, it can also generate findings for snapshots
+    of Aurora DB instances, Neptune DB instances, and Amazon DocumentDB clusters.
+    If these findings are not useful, then you can suppress them.
+  text: '#4 RDS cluster snapshots and database snapshots should be encrypted at rest'
 - action: core.sql
   desc: Description
   id: S7
   inputs:
-    sql: ''
+    sql: " \n \nselect\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ storage_encrypted then 'ok'\n    else 'alarm'\n  end as status,\n  case\n\
+      \    when storage_encrypted then title || ' encrypted at rest.'\n    else title\
+      \ || ' not encrypted at rest.'\n  end as reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_rds_db_cluster_snapshot\n\nunion\n\nselect\n\
+      \  -- Required Columns\n  arn as resource,\n  case\n    when encrypted then\
+      \ 'ok'\n    else 'alarm'\n  end as status,\n  case\n    when encrypted then\
+      \ title || ' encrypted at rest.'\n    else title || ' not encrypted at rest.'\n\
+      \  end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_rds_db_snapshot\n;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S8
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S7.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S7.output.rows if ( x[context.steps.S7.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S7.output.rows
+
+      check.name = "#4 RDS cluster snapshots and database snapshots should be encrypted
+      at rest"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  text: '#5 RDS DB instances should be configured with multiple Availability Zones
+    - Not implemented'
 - action: core.sql
   desc: Description
   id: S9
   inputs:
     sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S10
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S9.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S9.output.rows if ( x[context.steps.S9.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S9.output.rows
+
+      check.name = "#5 RDS DB instances should be configured with multiple Availability
+      Zones - Not implemented"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: This control checks whether enhanced monitoring is enabled for your
+    RDS DB instances. In Amazon RDS, Enhanced Monitoring enables a more rapid response
+    to performance changes in underlying infrastructure. These performance changes
+    could result in a lack of availability of the data. Enhanced Monitoring provides
+    real-time metrics of the operating system that your RDS DB instance runs on. An
+    agent is installed on the instance. The agent can obtain metrics more accurately
+    than is possible from the hypervisor layer.
+  text: '#6 Enhanced monitoring should be configured for RDS DB instances and clusters'
 - action: core.sql
   desc: Description
   id: S11
   inputs:
-    sql: ''
+    sql: " \n \nselect\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ enabled_cloudwatch_logs_exports is not null then 'ok'\n    else 'alarm'\n\
+      \  end as status,\n  case\n    when enabled_cloudwatch_logs_exports is not null\
+      \ then title || ' enhanced monitoring enabled.'\n    else title || ' enhanced\
+      \ monitoring not enabled.'\n  end as reason,\n  -- Additional Dimensions\n \
+      \ region,\n  account_id\nfrom\n  aws_rds_db_cluster\n\nunion\n\nselect\n  --\
+      \ Required Columns\n  arn as resource,\n  case\n    when class = 'db.m1.small'\
+      \ then 'skip'\n    when enhanced_monitoring_resource_arn is not null then 'ok'\n\
+      \    else 'alarm'\n  end as status,\n  case\n    when class = 'db.m1.small'\
+      \ then title || ' enhanced monitoring not supported.'\n    when enhanced_monitoring_resource_arn\
+      \ is not null then title || ' enhanced monitoring enabled.'\n    else title\
+      \ || ' enhanced monitoring not enabled.'\n  end as reason,\n  -- Additional\
+      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_rds_db_instance\n;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S12
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S11.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S11.output.rows if ( x[context.steps.S11.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S11.output.rows
+
+      check.name = "#6 Enhanced monitoring should be configured for RDS DB instances
+      and clusters"
+
+      check.severity = "low"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: This control checks whether RDS clusters have deletion protection enabled.
+    This control is intended for RDS DB instances. However, it can also generate findings
+    for Aurora DB instances, Neptune DB instances, and Amazon DocumentDB clusters.
+    If these findings are not useful,then you can suppress them.
+  text: '#7 RDS clusters should have deletion protection enabled'
 - action: core.sql
   desc: Description
   id: S13
   inputs:
-    sql: ''
+    sql: " \n  select\n  -- Required Columns\n  db_cluster_identifier as resource,\n\
+      \  case\n    when deletion_protection then 'ok'\n    else 'alarm'\n  end as\
+      \ status,\n  case\n    when deletion_protection then title || ' deletion protection\
+      \ enabled.'\n    else title || ' deletion protection not enabled.'\n  end as\
+      \ reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n  aws_rds_db_cluster;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S14
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S13.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S13.output.rows if ( x[context.steps.S13.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S13.output.rows
+
+      check.name = "#7 RDS clusters should have deletion protection enabled"
+
+      check.severity = "low"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: 'This control checks whether your RDS DB instances that use one of
+    the listed database engines have deletion protection enabled. DatabaseEngines:
+    mariadb,mysql,oracle-ee,oracle-se2,oracle-se1,oracle-se,postgres,sqlserver-ee,sqlserver-se,sqlserver-ex,sqlserver-web.'
+  text: '#8 RDS DB instances should have deletion protection enabled'
 - action: core.sql
   desc: Description
   id: S15
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ deletion_protection then 'ok'\n    else 'alarm'\n  end status,\n  case\n \
+      \   when deletion_protection then title || ' deletion protection enabled.'\n\
+      \    else title || ' deletion protection not enabled.'\n  end reason,\n  --\
+      \ Additional Dimensions\n  region,\n  account_id\nfrom\n  aws_rds_db_instance;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S16
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S15.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S15.output.rows if ( x[context.steps.S15.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S15.output.rows
+
+      check.name = "#8 RDS DB instances should have deletion protection enabled"
+
+      check.severity = "low"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  text: '#9 Database logging should be enabled - Not implemented'
 - action: core.sql
   desc: Description
   id: S17
   inputs:
     sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S18
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S17.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S17.output.rows if ( x[context.steps.S17.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S17.output.rows
+
+      check.name = "#9 Database logging should be enabled - Not implemented"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: This control checks whether an RDS DB instance has IAM database authentication
+    enabled IAM database authentication allows authentication to database instances
+    with an authentication token instead of a password. Network traffic to and from
+    the database is encrypted using SSL.
+  text: '#10 IAM authentication should be configured for RDS instances'
 - action: core.sql
   desc: Description
   id: S19
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ iam_database_authentication_enabled then 'ok'\n    else 'alarm'\n  end as\
+      \ status,\n  case\n    when iam_database_authentication_enabled then title ||\
+      \ ' IAM authentication enabled.'\n    else title || ' IAM authentication not\
+      \ enabled.'\n  end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
+      from\n  aws_rds_db_instance;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S20
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S19.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S19.output.rows if ( x[context.steps.S19.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S19.output.rows
+
+      check.name = "#10 IAM authentication should be configured for RDS instances"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: This control checks whether an RDS DB cluster has IAM database authentication
+    enabled. IAM database authentication allows for password-free authentication to
+    database instances. The authentication uses an authentication token. Network traffic
+    to and from the database is encrypted using SSL.
+  text: '#12 IAM authentication should be configured for RDS clusters'
 - action: core.sql
   desc: Description
   id: S21
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ iam_database_authentication_enabled then 'ok'\n    else 'alarm'\n  end as\
+      \ status,\n  case\n    when iam_database_authentication_enabled then title ||\
+      \ ' IAM authentication enabled.'\n    else title || ' IAM authentication not\
+      \ enabled.'\n  end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
+      from\n  aws_rds_db_cluster;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S22
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S21.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S21.output.rows if ( x[context.steps.S21.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S21.output.rows
+
+      check.name = "#12 IAM authentication should be configured for RDS clusters"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+  description: This control checks whether automatic minor version upgrades are enabled
+    for the RDS database instance. Enabling automatic minor version upgrades ensures
+    that the latest minor version updates to the relational database management system
+    (RDBMS) are installed. These upgrades might include security patches and bug fixes.
+    Keeping up to date with patch installation is an important step in securing systems.
+  text: '#13 RDS automatic minor version upgrades should be enabled'
 - action: core.sql
   desc: Description
   id: S23
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ auto_minor_version_upgrade then 'ok'\n    else 'alarm'\n  end as status,\n\
+      \  case\n    when auto_minor_version_upgrade then title || ' automatic minor\
+      \ version upgrades enabled.'\n    else title || ' automatic minor version upgrades\
+      \ not enabled.'\n  end as reason,\n  -- Additional Dimensions\n  region,\n \
+      \ account_id\nfrom\n  aws_rds_db_instance;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S24
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S23.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S23.output.rows if ( x[context.steps.S23.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S23.output.rows
+
+      check.name = "#13 RDS automatic minor version upgrades should be enabled"
+
+      check.severity = "high"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
   text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
 - action: core.sql
@@ -239,16 +536,62 @@ steps:
   inputs:
     sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S26
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S25.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S25.output.rows if ( x[context.steps.S25.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S25.output.rows
+
+      check.name = "#14 Amazon Aurora clusters should have backtracking enabled -
+      Not implemented"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_rds\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  foundational_security_rds Check results \",\"type\":\"mrkdwn\"\
+      }]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \nstep_ids = ['S2', 'S4', 'S6', 'S8', 'S10', 'S12', 'S14', 'S16', 'S18', 'S20',\
+      \ 'S22', 'S24', 'S26']\nfor id in step_ids:\n  if context.steps[id].status ==\
+      \ 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    steps = context.steps\n    section.text.text\
+      \ = context.steps[id].output.name[:72].ljust(72, ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \" :x:\\n\".rjust(91 - len(section.text.text),'\
+      \ ')\n    else:\n       section.text.text +=  \" :white_check_mark:\\n\".rjust(91\
+      \ - len(section.text.text),' ')\n    message_blocks.append(section.toDict().copy())\n\
+      \n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
 tags: []
 type: Flow

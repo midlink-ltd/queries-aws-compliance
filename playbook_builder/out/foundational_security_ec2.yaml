@@ -1,225 +1,334 @@
 connections:
-  aws: ''
+  aws: aws_connection
 desc: ''
-name: '"foundational_security_ec2"'
+name: foundational_security_ec2
 steps:
 - desc: example description delete afterwards
-  text: '#10 Amazon EC2 should be configured to use VPC endpoints'
+  text: '#1 Amazon EBS snapshots should not be public, determined by the ability to
+    be restorable by anyone - Not implemented'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ vpc_id not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when vpc_id\
-      \ not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then title || ' not configured to use VPC endpoints.'\n    else title\
-      \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
+    sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S2
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S1.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#1 Amazon EBS snapshots should not be public, determined by the
+      ability to be restorable by anyone - Not implemented"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#10 Amazon EC2 should be configured to use VPC endpoints'
+  description: This control checks that the default security group of a VPC does not
+    allow inbound or outbound traffic. The rules for the default security group allow
+    all outbound and inbound traffic from network interfaces (and their associated
+    instances) that are assigned to the same security group.
+  text: '#2 The VPC default security group should not allow inbound and outbound traffic'
 - action: core.sql
   desc: Description
   id: S3
   inputs:
-    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ vpc_id not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when vpc_id\
-      \ not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then title || ' not configured to use VPC endpoints.'\n    else title\
-      \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
+    sql: " \n select\n  -- Required Columns\n  arn resource,\n  case\n    when ip_permissions\
+      \ is null and ip_permissions_egress is null then 'ok'\n    else 'alarm'\n  end\
+      \ status,\n  case\n    when ip_permissions is not null and ip_permissions_egress\
+      \ is not null\n      then 'Default security group ' || group_id || ' has inbound\
+      \ and outbound rules.'\n    when ip_permissions is not null and ip_permissions_egress\
+      \ is null\n      then 'Default security group ' || group_id || ' has inbound\
+      \ rules.'\n    when ip_permissions is null and ip_permissions_egress is not\
+      \ null\n      then 'Default security group ' || group_id || ' has outbound rules.'\n\
+      \    else 'Default security group ' || group_id || ' has no inbound or outbound\
+      \ rules.'\n  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
+      from\n  aws_vpc_security_group\nwhere\n  group_name = 'default';\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S4
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S3.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#2 The VPC default security group should not allow inbound and
+      outbound traffic"
+
+      check.severity = "high"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#10 Amazon EC2 should be configured to use VPC endpoints'
+  description: This control checks whether the EBS volumes that are in an attached
+    state are encrypted. To pass this check, EBS volumes must be in use and encrypted.
+    If the EBS volume is not attached, then it is not subject to this check.
+  text: '#3 Attached EBS volumes should be encrypted at rest'
 - action: core.sql
   desc: Description
   id: S5
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ vpc_id not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when vpc_id\
-      \ not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then title || ' not configured to use VPC endpoints.'\n    else title\
-      \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
+      \ encrypted then 'ok'\n    else 'alarm'\n  end as status,\n  case\n    when\
+      \ encrypted then volume_id || ' encrypted.'\n    else volume_id || ' not encrypted.'\n\
+      \  end as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_ebs_volume\nwhere\n  state = 'in-use';"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S6
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S5.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#3 Attached EBS volumes should be encrypted at rest"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#10 Amazon EC2 should be configured to use VPC endpoints'
+  text: '#4 Stopped EC2 instances should be removed after a specified time period
+    - Not implemented'
 - action: core.sql
   desc: Description
   id: S7
   inputs:
-    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ vpc_id not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when vpc_id\
-      \ not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then title || ' not configured to use VPC endpoints.'\n    else title\
-      \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
+    sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S8
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S7.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S7.output.rows if ( x[context.steps.S7.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S7.output.rows
+
+      check.name = "#4 Stopped EC2 instances should be removed after a specified time
+      period - Not implemented"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#10 Amazon EC2 should be configured to use VPC endpoints'
+  text: '#6 VPC flow logging should be enabled in all VPCs - Not implemented'
 - action: core.sql
   desc: Description
   id: S9
   inputs:
-    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ vpc_id not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when vpc_id\
-      \ not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then title || ' not configured to use VPC endpoints.'\n    else title\
-      \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
+    sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S10
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S9.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S9.output.rows if ( x[context.steps.S9.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S9.output.rows
+
+      check.name = "#6 VPC flow logging should be enabled in all VPCs - Not implemented"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#10 Amazon EC2 should be configured to use VPC endpoints'
+  description: This control checks whether account-level encryption is enabled by
+    default for Amazon Elastic Block Store(Amazon EBS). The control fails if the account
+    level encryption is not enabled.
+  text: '#7 EBS default encryption should be enabled'
 - action: core.sql
   desc: Description
   id: S11
   inputs:
-    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ vpc_id not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when vpc_id\
-      \ not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then title || ' not configured to use VPC endpoints.'\n    else title\
-      \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
+    sql: " \n select\n  -- Required Columns\n  'arn:' || partition || '::' || region\
+      \ || ':' || account_id as resource,\n  case\n    when not default_ebs_encryption_enabled\
+      \ then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when not default_ebs_encryption_enabled\
+      \ then region || ' default EBS encryption disabled.'\n    else region || ' default\
+      \ EBS encryption enabled.'\n  end as reason,\n  -- Additional Dimensions\n \
+      \ region,\n  account_id\nfrom\n  aws_ec2_regional_settings;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S12
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S11.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S11.output.rows if ( x[context.steps.S11.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S11.output.rows
+
+      check.name = "#7 EBS default encryption should be enabled"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#10 Amazon EC2 should be configured to use VPC endpoints'
+  description: This control checks whether your EC2 instance metadata version is configured
+    with Instance Metadata Service Version 2 (IMDSv2). The control passes if HttpTokens
+    is set to required for IMDSv2. The control fails if HttpTokens is set to optional.
+  text: '#8 EC2 instances should use IMDSv2'
 - action: core.sql
   desc: Description
   id: S13
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ vpc_id not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when vpc_id\
-      \ not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then title || ' not configured to use VPC endpoints.'\n    else title\
-      \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
+      \ json_extract(metadata_options,'$.HttpTokens') = 'optional' then 'alarm'\n\
+      \    else 'ok'\n  end as status,\n  case\n    when json_extract(metadata_options,'$.HttpTokens')\
+      \ = 'optional' then title || ' not configured to use Instance Metadata Service\
+      \ Version 2 (IMDSv2).'\n    else title || ' configured to use Instance Metadata\
+      \ Service Version 2 (IMDSv2).'\n  end as reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_ec2_instance;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S14
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S13.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S13.output.rows if ( x[context.steps.S13.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S13.output.rows
+
+      check.name = "#8 EC2 instances should use IMDSv2"
+
+      check.severity = "high"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#10 Amazon EC2 should be configured to use VPC endpoints'
+  description: This control checks whether EC2 instances have a public IP address.
+    The control fails if the publicIp field is present in the EC2 instance configuration
+    item. This control applies to IPv4 addresses only.
+  text: '#9 EC2 instances should not have a public IP address'
 - action: core.sql
   desc: Description
   id: S15
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ vpc_id not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when vpc_id\
-      \ not in (\n      select\n        vpc_id\n      from\n        aws_vpc_endpoint\n\
-      \      where\n        service_name like 'com.amazonaws.' || region || '.ec2'\n\
-      \    ) then title || ' not configured to use VPC endpoints.'\n    else title\
-      \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
+      \ public_ip_address is null then 'ok'\n    else 'alarm'\n  end status,\n  case\n\
+      \    when public_ip_address is null then instance_id || ' not publicly accessible.'\n\
+      \    else instance_id || ' publicly accessible.'\n  end reason,\n  -- Additional\
+      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_ec2_instance"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S16
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S15.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S15.output.rows if ( x[context.steps.S15.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S15.output.rows
+
+      check.name = "#9 EC2 instances should not have a public IP address"
+
+      check.severity = "high"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
+  description: This control checks whether a service endpoint for Amazon EC2 is created
+    for each VPC. The control fails if a VPC does not have a VPC endpoint created
+    for the Amazon EC2 service.
   text: '#10 Amazon EC2 should be configured to use VPC endpoints'
 - action: core.sql
   desc: Description
@@ -235,16 +344,60 @@ steps:
       \ || ' configured to use VPC endpoints.'\n  end as reason,\n  -- Additional\
       \ Dimensions\n  region,\n  account_id\nfrom\n  aws_vpc;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S18
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S17.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S17.output.rows if ( x[context.steps.S17.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S17.output.rows
+
+      check.name = "#10 Amazon EC2 should be configured to use VPC endpoints"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_ec2\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  foundational_security_ec2 Check results \",\"type\":\"mrkdwn\"\
+      }]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \nstep_ids = ['S2', 'S4', 'S6', 'S8', 'S10', 'S12', 'S14', 'S16', 'S18']\nfor\
+      \ id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
+      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    steps\
+      \ = context.steps\n    section.text.text = context.steps[id].output.name[:72].ljust(72,\
+      \ ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \" :x:\\n\".rjust(91 - len(section.text.text),' ')\n    else:\n      \
+      \ section.text.text +=  \" :white_check_mark:\\n\".rjust(91 - len(section.text.text),'\
+      \ ')\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
 tags: []
 type: Flow

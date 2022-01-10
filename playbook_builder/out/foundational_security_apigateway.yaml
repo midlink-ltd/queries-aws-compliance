@@ -1,34 +1,61 @@
 connections:
-  aws: ''
+  aws: aws_connection
 desc: ''
-name: '"foundational_security_apigateway"'
+name: foundational_security_apigateway
 steps:
 - desc: example description delete afterwards
-  text: '#2 API Gateway REST API stages should be configured to use SSL certificates
-    for backend authentication'
+  description: This control checks whether all stages of an Amazon API Gateway REST
+    or WebSocket API have logging enabled. The control fails if logging is not enabled
+    for all methods of a stage or if loggingLevel is neither ERROR nor INFO.
+  text: '#1 API Gateway REST and WebSocket API logging should be enabled'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: " \n select\n  -- Required Columns\n  'arn:' || partition || ':apigateway:'\
-      \ || region || '::/apis/' || rest_api_id || '/stages/' as resource,\n  case\n\
-      \    when client_certificate_id is null then 'alarm'\n    else 'ok'\n  end as\
-      \ status,\n  case\n    when client_certificate_id is null then title || ' not\
-      \ uses SSL certificate.'\n    else title || ' uses SSL certificate.'\n  end\
-      \ as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n  aws_api_gateway_stage;"
+    sql: " \n with all_stages as (\n  select\n    name as stage_name,\n    'arn:'\
+      \ || partition || ':apigateway:' || region || '::/apis/' || rest_api_id || '/stages/'\
+      \ || name as arn,\n    json_extract(method_settings,'$.*/*.LoggingLevel') as\
+      \ log_level,\n    title,\n    region,\n    account_id\n  from\n    aws_api_gateway_stage\n\
+      \  union\n  select\n    stage_name,\n    'arn:' || partition || ':apigateway:'\
+      \ || region || '::/apis/' || api_id || '/stages/' || stage_name as arn,\n  \
+      \  default_route_logging_level as log_level,\n    title,\n    region,\n    account_id\n\
+      \  from\n    aws_api_gatewayv2_stage\n)\nselect\n  -- Required Columns\n  arn\
+      \ as resource,\n  case\n    when log_level is null or log_level = 'OFF' then\
+      \ 'alarm'\n    else 'ok'\n  end as status,\n  case\n    when log_level is null\
+      \ or log_level = 'OFF' then title || ' logging not enabled.'\n    else title\
+      \ || ' logging enabled.'\n  end as reason,\n  -- Additional Dimensions\n  region,\n\
+      \  account_id\nfrom\n  all_stages;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S2
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S1.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#1 API Gateway REST and WebSocket API logging should be enabled"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
+  description: This control checks whether Amazon API Gateway REST API stages have
+    SSL certificates configured. Backend systems use these certificates to authenticate
+    that incoming requests are from API Gateway.
   text: '#2 API Gateway REST API stages should be configured to use SSL certificates
     for backend authentication'
 - action: core.sql
@@ -42,16 +69,61 @@ steps:
       \ uses SSL certificate.'\n    else title || ' uses SSL certificate.'\n  end\
       \ as reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n  aws_api_gateway_stage;"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S4
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S3.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#2 API Gateway REST API stages should be configured to use SSL
+      certificates for backend authentication"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_apigateway\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  foundational_security_apigateway Check results \",\"type\"\
+      :\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \nstep_ids = ['S2', 'S4']\nfor id in step_ids:\n  if context.steps[id].status\
+      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    steps = context.steps\n    section.text.text\
+      \ = context.steps[id].output.name[:72].ljust(72, ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \" :x:\\n\".rjust(91 - len(section.text.text),'\
+      \ ')\n    else:\n       section.text.text +=  \" :white_check_mark:\\n\".rjust(91\
+      \ - len(section.text.text),' ')\n    message_blocks.append(section.toDict().copy())\n\
+      \n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
 tags: []
 type: Flow

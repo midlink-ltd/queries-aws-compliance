@@ -1,141 +1,297 @@
 connections:
-  aws: ''
+  aws: aws_connection
 desc: ''
-name: '"foundational_security_iam"'
+name: foundational_security_iam
 steps:
 - desc: example description delete afterwards
-  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+  text: '#1 IAM policies should not allow full ''*'' administrative privileges - Not
+    implemented'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
     sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S2
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S1.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#1 IAM policies should not allow full ''*'' administrative privileges
+      - Not implemented"
+
+      check.severity = "high"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+  description: This control checks that none of your IAM users have policies attached.
+    Instead, IAM users must inherit permissions from IAM groups or roles.
+  text: '#2 IAM users should not have IAM policies attached'
 - action: core.sql
   desc: Description
   id: S3
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ inline_policies is null and attached_policy_arns is null then 'ok'\n    else\
+      \ 'alarm'\n  end status,\n  name || ' has ' || coalesce(jsonb_array_length(inline_policies),0)\
+      \ || ' inline and ' ||\n    coalesce(jsonb_array_length(attached_policy_arns),0)\
+      \ || ' directly attached policies.' as reason,\n  -- Additional Dimensions\n\
+      \  account_id\nfrom\n  aws_iam_user;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S4
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S3.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#2 IAM users should not have IAM policies attached"
+
+      check.severity = "low"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+  description: This control checks whether the active access keys are rotated within
+    90 days.
+  text: '#3 IAM users'' access keys should be rotated every 90 days or less'
 - action: core.sql
   desc: Description
   id: S5
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:' || partition || ':iam::' ||\
+      \ account_id || ':user/' || user_name || '/accesskey/' || access_key_id as resource,\n\
+      \  case\n    when create_date <= datetime('now', '-90 day') then 'alarm'\n \
+      \   else 'ok'\n  end status,\n  user_name || ' ' || access_key_id || ' created\
+      \ ' || date(create_date) ||\n    ' (' || ROUND(JULIANDAY('now') - JULIANDAY(create_date))\
+      \ || ' days).'\n  as reason,\n  -- Additional Dimensions\n  account_id\nfrom\n\
+      \  aws_iam_access_key;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S6
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S5.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S5.output.rows
+
+      check.name = "#3 IAM users'' access keys should be rotated every 90 days or
+      less"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+  description: This control checks whether the root user access key is present. The
+    root account is the most privileged user in an AWS account. AWS access keys provide
+    programmatic access to a given account.
+  text: '#4 IAM root user access key should not exist'
 - action: core.sql
   desc: Description
   id: S7
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:' || partition || ':::' || account_id\
+      \ as resource,\n  case\n    when account_access_keys_present > 0 then 'alarm'\n\
+      \    else 'ok'\n  end status,\n  case\n    when account_access_keys_present\
+      \ > 0 then 'Root user access keys exist.'\n    else 'No root user access keys\
+      \ exist.'\n  end reason,\n  -- Additional Dimensions\n  account_id\nfrom\n \
+      \ aws_iam_account_summary;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S8
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S7.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S7.output.rows if ( x[context.steps.S7.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S7.output.rows
+
+      check.name = "#4 IAM root user access key should not exist"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+  text: '#5 MFA should be enabled for all IAM users that have a console password -
+    Not implemented'
 - action: core.sql
   desc: Description
   id: S9
   inputs:
     sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S10
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S9.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S9.output.rows if ( x[context.steps.S9.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S9.output.rows
+
+      check.name = "#5 MFA should be enabled for all IAM users that have a console
+      password - Not implemented"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+  description: This control checks whether your AWS account is enabled to use a hardware
+    multi-factor authentication (MFA) device to sign in with root user credentials.
+  text: '#6 Hardware MFA should be enabled for the root user'
 - action: core.sql
   desc: Description
   id: S11
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:' || s.partition || ':::' || s.account_id\
+      \ as resource,\n  case\n    when account_mfa_enabled and serial_number is null\
+      \ then 'ok'\n    else 'alarm'\n  end status,\n  case\n    when account_mfa_enabled\
+      \ = false then  'MFA not enabled for root account.'\n    when serial_number\
+      \ is not null then 'Virtual MFA device enabled the root account.'\n    else\
+      \ 'Hardware MFA device enabled for root account.'\n  end reason,\n  -- Additional\
+      \ Dimensions\n  s.account_id\nfrom\n  aws_iam_account_summary as s\n  left join\
+      \ aws_iam_virtual_mfa_device on serial_number = 'arn:' || s.partition || ':iam::'\
+      \ || s.account_id || ':mfa/root-account-mfa-device'"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S12
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S11.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S11.output.rows if ( x[context.steps.S11.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S11.output.rows
+
+      check.name = "#6 Hardware MFA should be enabled for the root user"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
-  text: '#8 Unused IAM user credentials should be removed - Not implemented'
+  description: This control checks whether the account password policy for IAM users
+    uses the recommended configurations.
+  text: '#7 Password policies for IAM users should have strong configurations'
 - action: core.sql
   desc: Description
   id: S13
   inputs:
-    sql: ''
+    sql: " \n select\n  -- Required Columns\n  'arn:' || a.partition || ':::' || a.account_id\
+      \ as resource,\n  case\n    when\n      minimum_password_length >= 8\n     \
+      \ and require_lowercase_characters = 'true'\n      and require_uppercase_characters\
+      \ = 'true'\n      and require_numbers = 'true'\n      and require_symbols =\
+      \ 'true'\n    then 'ok'\n    else 'alarm'\n  end as status,\n  case\n    when\
+      \ minimum_password_length is null then 'No password policy set.'\n    when\n\
+      \      minimum_password_length >= 8\n      and require_lowercase_characters\
+      \ = 'true'\n      and require_uppercase_characters = 'true'\n      and require_numbers\
+      \ = 'true'\n      and require_symbols = 'true'\n    then 'Strong password policies\
+      \ configured.'\n    else 'Strong password policies not configured.'\n  end as\
+      \ reason,\n  -- Additional Dimensions\n  a.account_id\nfrom\n  aws_account as\
+      \ a\n  left join aws_iam_account_password_policy as pol on a.account_id = pol.account_id;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S14
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S13.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S13.output.rows if ( x[context.steps.S13.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S13.output.rows
+
+      check.name = "#7 Password policies for IAM users should have strong configurations"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
   text: '#8 Unused IAM user credentials should be removed - Not implemented'
 - action: core.sql
@@ -144,16 +300,60 @@ steps:
   inputs:
     sql: ''
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S16
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S15.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S15.output.rows if ( x[context.steps.S15.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S15.output.rows
+
+      check.name = "#8 Unused IAM user credentials should be removed - Not implemented"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_iam\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  foundational_security_iam Check results \",\"type\":\"mrkdwn\"\
+      }]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \nstep_ids = ['S2', 'S4', 'S6', 'S8', 'S10', 'S12', 'S14', 'S16']\nfor id in\
+      \ step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
+      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    steps\
+      \ = context.steps\n    section.text.text = context.steps[id].output.name[:72].ljust(72,\
+      \ ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \" :x:\\n\".rjust(91 - len(section.text.text),' ')\n    else:\n      \
+      \ section.text.text +=  \" :white_check_mark:\\n\".rjust(91 - len(section.text.text),'\
+      \ ')\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
 tags: []
 type: Flow

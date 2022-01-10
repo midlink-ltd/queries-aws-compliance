@@ -8,14 +8,29 @@ steps:
     inputs:
       sql: |-
         query
-  - action: slack.SendFile
+  - action: core.python
     id: S2
-    name: Send report to Slack
+    name: Format Result
     desc: Description
     inputs:
-      Channel: demo
-      Content: "{{table_to_csv(steps.S1.output)}}"
-      File name: ""
-      File type: csv
-    connections:
-      slack: slack_connection
+      code: >-
+        from dotmap import DotMap
+        
+        import json
+
+        filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index('status')] == 'alarm' )]
+
+
+        check = DotMap()
+
+
+        check.isAlarm = len(filtered_on_alarm) > 0
+
+        check.details = context.steps.S1.output.rows
+
+        check.name = "ControlName"
+
+        check.severity = "DefaultSeverity"
+
+
+        print(json.dumps(check.toDict()))

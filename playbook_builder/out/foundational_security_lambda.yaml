@@ -1,36 +1,61 @@
 connections:
-  aws: ''
+  aws: aws_connection
 desc: ''
-name: '"foundational_security_lambda"'
+name: foundational_security_lambda
 steps:
 - desc: example description delete afterwards
-  text: '#2 Lambda functions should use latest runtimes'
+  description: This control checks whether the Lambda function resource-based policy
+    prohibits public access outside of your account. The Lambda function should not
+    be publicly accessible, as this may allow unintended access to your code stored
+    in the function.
+  text: '#1 Lambda function policies should prohibit public access'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ runtime in ('nodejs14.x', 'nodejs12.x', 'nodejs10.x', 'python3.8', 'python3.7',\
-      \ 'python3.6', 'ruby2.5', 'ruby2.7', 'java11', 'java8', 'go1.x', 'dotnetcore2.1',\
-      \ 'dotnetcore3.1') then 'ok'\n    else 'alarm'\n  end as status,\n  case\n \
-      \   when runtime in ('nodejs14.x', 'nodejs12.x', 'nodejs10.x', 'python3.8',\
-      \ 'python3.7', 'python3.6', 'ruby2.5', 'ruby2.7', 'java11', 'java8', 'go1.x',\
-      \ 'dotnetcore2.1', 'dotnetcore3.1') then title || ' uses latest runtimes.'\n\
-      \    else title || ' uses latest runtimes.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_lambda_function;\n"
+      \ json_extract(policy_std,'$.Statement.Effect') = 'Allow'\n    and (\n     \
+      \ json_extract(policy_std,'$.Statement.Prinipal') = '*'\n      or ( json_extract(policy_std,'$.Principal.AWS')\
+      \ ) = '*'\n    ) then 'alarm'\n    else 'ok'\n  end status,\n  case\n    when\
+      \ policy_std is null then title || ' has no policy.'\n    when json_extract(policy_std,'$.Statement.Effect')\
+      \ = 'Allow'\n    and (\n      json_extract(policy_std,'$.Statement.Prinipal')\
+      \ = '*'\n      or ( json_extract(policy_std,'$.Principal.AWS') ) = '*'\n   \
+      \ ) then title || ' allows public access.'\n    else title || ' does not allow\
+      \ public access.'\n  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
+      from\n  aws_lambda_function;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S2
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S1.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#1 Lambda function policies should prohibit public access"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
 - desc: example description delete afterwards
+  description: 'This control checks that the Lambda function settings for runtimes
+    match the expected values set for the latest runtimes for each supported language.
+    This control checks for the following runtimes: nodejs14.x, nodejs12.x, nodejs10.x,
+    python3.8, python3.7, python3.6, ruby2.7, ruby2.5,java11, java8, go1.x, dotnetcore3.1,
+    dotnetcore2.1.'
   text: '#2 Lambda functions should use latest runtimes'
 - action: core.sql
   desc: Description
@@ -46,16 +71,60 @@ steps:
       \    else title || ' uses latest runtimes.'\n  end as reason,\n  -- Additional\
       \ Dimensions\n  region,\n  account_id\nfrom\n  aws_lambda_function;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S4
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S3.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "#2 Lambda functions should use latest runtimes"
+
+      check.severity = "medium"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_lambda\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  foundational_security_lambda Check results \",\"type\":\"\
+      mrkdwn\"}]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \nstep_ids = ['S2', 'S4']\nfor id in step_ids:\n  if context.steps[id].status\
+      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    steps = context.steps\n    section.text.text\
+      \ = context.steps[id].output.name[:72].ljust(72, ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \" :x:\\n\".rjust(91 - len(section.text.text),'\
+      \ ')\n    else:\n       section.text.text +=  \" :white_check_mark:\\n\".rjust(91\
+      \ - len(section.text.text),' ')\n    message_blocks.append(section.toDict().copy())\n\
+      \n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
 tags: []
 type: Flow

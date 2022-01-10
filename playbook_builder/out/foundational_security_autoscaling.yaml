@@ -1,9 +1,14 @@
 connections:
-  aws: ''
+  aws: aws_connection
 desc: ''
-name: '"foundational_security_autoscaling"'
+name: foundational_security_autoscaling
 steps:
 - desc: example description delete afterwards
+  description: This control checks whether your Auto Scaling groups that are associated
+    with a load balancer are using Elastic Load Balancing health checks. This ensures
+    that the group can determine an instance's health based on additional tests provided
+    by the load balancer. Using Elastic Load Balancing health checks can help support
+    the availability of applications that use EC2 Auto Scaling groups.
   text: '#1 Auto Scaling groups associated with a load balancer should use load balancer
     health checks'
 - action: core.sql
@@ -19,16 +24,60 @@ steps:
       \ ' uses ELB health check.'\n  end as reason,\n  -- Additional Dimensions\n\
       \  region,\n  account_id\nfrom\n  aws_ec2_autoscaling_group;\n"
   name: Perform the query
-- action: slack.SendFile
-  connections:
-    slack: slack_connection
+- action: core.python
   desc: Description
   id: S2
   inputs:
-    Channel: demo
-    Content: '{{table_to_csv(steps.S1.output)}}'
-    File name: ''
-    File type: csv
-  name: Send report to Slack
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "#1 Auto Scaling groups associated with a load balancer should
+      use load balancer health checks"
+
+      check.severity = "low"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
+      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_autoscaling\
+      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
+      text\": today+\" |  foundational_security_autoscaling Check results \",\"type\"\
+      :\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \nstep_ids = ['S2']\nfor id in step_ids:\n  if context.steps[id].status == 'OK':\n\
+      \    message_blocks.append({\"type\":\"divider\"})\n    \n    section = DotMap()\n\
+      \    section.type = \"section\"\n    section.text = DotMap()\n    section.text.type\
+      \ = \"mrkdwn\"\n    steps = context.steps\n    section.text.text = context.steps[id].output.name[:72].ljust(72,\
+      \ ' ') + \" ... \"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \" :x:\\n\".rjust(91 - len(section.text.text),' ')\n    else:\n      \
+      \ section.text.text +=  \" :white_check_mark:\\n\".rjust(91 - len(section.text.text),'\
+      \ ')\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connectiuon:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: jon-demo
+    Text: ''
+  name: Send report to clack channel
 tags: []
 type: Flow
