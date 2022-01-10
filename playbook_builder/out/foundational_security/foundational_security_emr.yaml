@@ -77,7 +77,7 @@ steps:
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: jon-demo
+    Channel: demo
     Text: ''
   name: Send report to clack channel
 tags: []

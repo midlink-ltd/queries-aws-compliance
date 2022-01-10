@@ -57,6 +57,6 @@ steps:
     connectiuon:
       slack: slack_connection
     inputs:
-      Channel: jon-demo
+      Channel: demo
       Text: ""
       Blocks: "{{steps.FormatResult.output}}"
