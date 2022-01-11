@@ -17,7 +17,7 @@ def literal_unicode_representer(dumper, data):
 def loadTemplate():
     with open(os.path.dirname(__file__) + "/playbook_template.yaml") as stream:
         try:
-            data_map = load(stream, Loader=yaml.FullLoader)
+            data_map = DotMap(load(stream, Loader=yaml.FullLoader))
         except yaml.YAMLError as exc:
             print(exc)
 
@@ -44,31 +44,50 @@ def findControlFile(query, controlDir):
                         
     return fname
 
-def parseBenchmark(controlFile):
-    benchmark = {}
-    benchmark["controls"] = []
-    benchmark["children"] = []
+def getTagsFromLocals(lines, localStartIndex):
+    tags = {}
+    local_lines = lines[localStartIndex:lines.index("}\n",localStartIndex)]
+    for line in local_lines:
+        if "tags" in line:
+            nLine = line.split("=")
+            tags[nLine[0].strip()] = []
+        if line.strip().startswith("plugin") or line.strip().startswith("service"):
+            sLine = line.split("=")
+            tags[nLine[0].strip()].append(sLine[1].strip().replace('"',''))
+    return tags
 
+def parseBenchmark(controlFile):
+    benchmark = DotMap()
+    benchmark.name = ""
+    benchmark.controls = []
+    benchmark.children = []
+    
     with open(os.path.dirname(__file__) + controlFile) as stream:
         lines = stream.readlines()
         control = {}
+        local_env = DotMap()
         i = 0
         while i < len(lines):
+            if(lines[i].startswith("locals")):
+                i+=1
+                benchmark.tags = getTagsFromLocals(lines,i)
+                
+
             if(lines[i].startswith("benchmark")):
-                benchmark["name"] = lines[i].split(' ')[1].replace('"','')
+                benchmark.name = lines[i].split(' ')[1].replace('"','')
                 while not "children = [" in lines[i]:
                     if(lines[i].strip().startswith("title")):
-                        benchmark["title"] = lines[i].split(' ')[1].replace('"','')
+                        benchmark.title = lines[i].split(' ')[1].replace('"','')
                     i+=1
                 i+=1
                 while not "]" in lines[i]:
-                    benchmark["children"].append(lines[i].strip().replace(',',''))
+                    benchmark.children.append(lines[i].strip().replace(',',''))
                     i+=1
                 while not "}" in lines[i]:
                     i+=1
             if(lines[i].startswith("control")):
                 controlName = lines[i].split(' ')[1].replace('"','')
-                child = benchmark["children"].index("control."+controlName) if "control."+controlName in benchmark["children"] else -1
+                child = benchmark.children.index("control."+controlName) if "control."+controlName in benchmark.children else -1
                 i+=1
                 while not lines[i].startswith("}"):
                     sLine = lines[i].split("=")
@@ -76,7 +95,7 @@ def parseBenchmark(controlFile):
                         control[sLine[0].strip()] = sLine[1].strip().replace('"','')
                         
                     i+=1
-                benchmark["controls"].append(control.copy())
+                benchmark.controls.append(control.copy())
             i+=1
    
     return benchmark 
@@ -90,7 +109,10 @@ def getQuery(queryFile):
     return lines
 
 def convertBenchToPlaybook(bench, playbook):
-    playbook["name"] = bench["name"]
+    playbook.name = bench.name
+    for tag in bench.tags:
+        if bench.tags[tag] not in playbook.tags:
+            playbook.tags.extend( bench.tags[tag])
     
     with open(os.path.dirname(__file__) + "/section-template.yaml") as stream:
         stepsTemplate = yaml.load(stream,Loader=yaml.FullLoader)
@@ -101,7 +123,7 @@ def convertBenchToPlaybook(bench, playbook):
     sectionId = 0
     output_ids = []
 
-    for control in bench["controls"]:
+    for control in bench.controls:
         section = DotMap(stepsTemplate["steps"][0])
         description = DotMap(stepsTemplate["steps"][1])
         sql = DotMap(stepsTemplate["steps"][2])
@@ -137,44 +159,46 @@ def convertBenchToPlaybook(bench, playbook):
         if "severity" in control:
             format_message.inputs.code = format_message.inputs.code.replace("DefaultSeverity",control['severity'])
         
-        playbook["steps"].append(section.toDict())
-        playbook["steps"].append(description.toDict())
-        playbook["steps"].append(sql.toDict())
-        playbook["steps"].append(format_message.toDict())
+        playbook.steps.append(section.toDict())
+        playbook.steps.append(description.toDict())
+        playbook.steps.append(sql.toDict())
+        playbook.steps.append(format_message.toDict())
 
         output_ids.append(format_message.id)
 
         sectionId += 2
     
-    last_steps.steps[1].inputs.code = last_steps.steps[1].inputs.code.replace("GeneratedStepsIds", str(output_ids)).replace("BenchmarkName", playbook["name"])
+    last_steps.steps[1].inputs.code = last_steps.steps[1].inputs.code.replace("GeneratedStepsIds", str(output_ids)).replace("BenchmarkName", playbook.name)
     for step in last_steps.steps:
         playbook["steps"].append(step.toDict())
 
     return playbook
 
 
-def generateControlPlaybooks(controlName):
+def generateControlPlaybooks(controlName, defaultTags=["Compliance"]):
     cwd = "/../"+controlName+"/"
     for file in os.listdir(os.path.dirname(__file__) + cwd):
         if file.endswith(".sp"):
             benchmark = parseBenchmark(cwd + file)
-            data_map = loadTemplate()
-    
-            playbook = convertBenchToPlaybook(benchmark, data_map)
-            writePlaybook(playbook, controlName, benchmark["name"].replace('"','') + ".yaml")
-
+            if(benchmark.name != ""):
+                playbook_template = loadTemplate()
+                playbook_template.tags.extend(defaultTags)
+                playbook = convertBenchToPlaybook(benchmark,playbook_template)
+                writePlaybook(playbook.toDict(), controlName, benchmark["name"].replace('"','') + ".yaml")
+            else:
+                print("Not supported : " + cwd + file)
     return
 
 def main():
-
-    generateControlPlaybooks("foundational_security")
-    generateControlPlaybooks("cis_v130")
-    generateControlPlaybooks("cis_v140")
-    generateControlPlaybooks("hipaa")
-    generateControlPlaybooks("pci_v321")
-    generateControlPlaybooks("rbi_cyber_security")
-    generateControlPlaybooks("conformance_pack")
-    #generateControlPlaybooks("test")
+    
+    generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
+    generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
+    generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
+    generateControlPlaybooks("hipaa",["AWS", "Compliance", "hipaa"])
+    generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
+    generateControlPlaybooks("rbi_cyber_security",["AWS", "Compliance", "rbi_cyber_security"])
+    generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
+    # generateControlPlaybooks("test")
 
 
     
