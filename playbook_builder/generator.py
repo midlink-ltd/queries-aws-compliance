@@ -59,9 +59,11 @@ def getTagsFromLocals(lines, localStartIndex):
 def parseBenchmark(controlFile):
     benchmark = DotMap()
     benchmark.name = ""
-    benchmark.controls = []
-    benchmark.children = []
     
+
+    benchmarks = DotMap()
+    
+
     with open(os.path.dirname(__file__) + controlFile) as stream:
         lines = stream.readlines()
         control = {}
@@ -74,6 +76,8 @@ def parseBenchmark(controlFile):
                 
 
             if(lines[i].startswith("benchmark")):
+                benchmark.controls = []
+                benchmark.children = []
                 benchmark.name = lines[i].split(' ')[1].replace('"','')
                 while not "children = [" in lines[i]:
                     if(lines[i].strip().startswith("title")):
@@ -81,13 +85,18 @@ def parseBenchmark(controlFile):
                     i+=1
                 i+=1
                 while not "]" in lines[i]:
-                    benchmark.children.append(lines[i].strip().replace(',',''))
+                    child = lines[i].strip().split(".")
+                    if child[0].strip() == "benchmark":
+                        benchmark.children.append(child[1].replace(',','').capitalize())
+                    elif child[0].strip() == "control":
+                        benchmark.controls.append(child[1].replace(',',''))
                     i+=1
                 while not "}" in lines[i]:
                     i+=1
+                benchmarks[benchmark.name] =  benchmark.copy()
+
             if(lines[i].startswith("control")):
                 controlName = lines[i].split(' ')[1].replace('"','')
-                child = benchmark.children.index("control."+controlName) if "control."+controlName in benchmark.children else -1
                 i+=1
                 while not lines[i].startswith("}"):
                     sLine = lines[i].split("=")
@@ -95,10 +104,13 @@ def parseBenchmark(controlFile):
                         control[sLine[0].strip()] = sLine[1].strip().replace('"','')
                         
                     i+=1
-                benchmark.controls.append(control.copy())
+                    
+                parent_benchmarks = [benchmarks[x] for x in benchmarks if controlName in benchmarks[x].controls]
+                for parent in parent_benchmarks:
+                    parent.controls[parent.controls.index(controlName)] = control.copy()
             i+=1
    
-    return benchmark 
+    return benchmarks 
             
 def getQuery(queryFile):
 
@@ -123,6 +135,24 @@ def convertBenchToPlaybook(bench, playbook):
     sectionId = 0
     output_ids = []
 
+    if len(bench.controls) > 0:
+        playbook.type = "Subflow.playbook"
+
+    for child in bench.children:
+        section = DotMap(stepsTemplate["steps"][0])
+        description = DotMap(stepsTemplate["steps"][1])
+        action = DotMap(stepsTemplate["steps"][4])
+        action.action = "playbooks." + child
+        action.id = "S"+ str(sectionId+1)
+        action.name = child
+        
+        output_ids.append(action.id)
+
+        playbook.steps.append(section.toDict())
+        playbook.steps.append(description.toDict())
+        playbook.steps.append(action.toDict())
+        sectionId +=1
+        
     for control in bench.controls:
         section = DotMap(stepsTemplate["steps"][0])
         description = DotMap(stepsTemplate["steps"][1])
@@ -155,7 +185,7 @@ def convertBenchToPlaybook(bench, playbook):
            
         #fill format message
         format_message.id = "S"+str(sectionId+2)
-        format_message.inputs.code = format_message.inputs.code.replace("S1",sql.id ).replace('ControlName',section.text)
+        format_message.inputs.code = format_message.inputs.code.replace("S1",sql.id ).replace('ControlName', control["title"].replace('"','')).replace("\\",'')
         if "severity" in control:
             format_message.inputs.code = format_message.inputs.code.replace("DefaultSeverity",control['severity'])
         
@@ -179,26 +209,27 @@ def generateControlPlaybooks(controlName, defaultTags=["Compliance"]):
     cwd = "/../"+controlName+"/"
     for file in os.listdir(os.path.dirname(__file__) + cwd):
         if file.endswith(".sp"):
-            benchmark = parseBenchmark(cwd + file)
-            if(benchmark.name != ""):
-                playbook_template = loadTemplate()
-                playbook_template.tags.extend(defaultTags)
-                playbook = convertBenchToPlaybook(benchmark,playbook_template)
-                writePlaybook(playbook.toDict(), controlName, benchmark["name"].replace('"','') + ".yaml")
-            else:
-                print("Not supported : " + cwd + file)
+            benchmarks = parseBenchmark(cwd + file)
+            for key in benchmarks:
+                if(benchmarks[key].name != ""):
+                    playbook_template = loadTemplate()
+                    playbook_template.tags.extend(defaultTags)
+                    playbook = convertBenchToPlaybook(benchmarks[key],playbook_template)
+                    writePlaybook(playbook.toDict(), controlName, benchmarks[key].name.replace('"','') + ".yaml")
+                else:
+                    print("Not supported : " + cwd + file)
     return
 
 def main():
     
-    generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
-    generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
-    generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
-    generateControlPlaybooks("hipaa",["AWS", "Compliance", "hipaa"])
-    generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
-    generateControlPlaybooks("rbi_cyber_security",["AWS", "Compliance", "rbi_cyber_security"])
-    generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
-    # generateControlPlaybooks("test")
+    # generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
+    # generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
+    # generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
+    # generateControlPlaybooks("hipaa",["AWS", "Compliance", "hipaa"])
+    # generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
+    # generateControlPlaybooks("rbi_cyber_security",["AWS", "Compliance", "rbi_cyber_security"])
+    # generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
+    generateControlPlaybooks("test")
 
 
     

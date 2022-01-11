@@ -35,3 +35,9 @@ steps:
 
 
         print(json.dumps(check.toDict()))
+  - action: playbooks.GeneratedChildrenPlaybook
+    desc: "Description"
+    name: ""
+    id: S3
+    inputs:
+      send_notif: false

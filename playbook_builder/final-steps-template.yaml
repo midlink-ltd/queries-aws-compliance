@@ -19,14 +19,19 @@ steps:
 
         message_blocks = []
 
+        execution_url = context.server_environment_url + "/workspace/" + context.workspace_id + "/playbooks/library/playbook?id=" + context.playbook_id + "&execution=" + context.execution_id 
+
         header = {"type": "header", "text": {"type": "plain_text","text": ":speaker:  BenchmarkName  :speaker:"}}
 
         context_section = {"type":"context","elements":[{"text": today+" |  BenchmarkName Check results ","type":"mrkdwn"}]}
 
+        blink_execution = {"type":"section","text":{"text": ":point_right: <" + execution_url + "| *Full report available in Blink*>" ,"type":"mrkdwn"}}
 
         message_blocks.append(header)
 
         message_blocks.append(context_section)
+
+        message_blocks.append(blink_execution)
 
 
         step_ids = GeneratedStepsIds
@@ -56,9 +61,10 @@ steps:
   - action: slack.SendMessage
     id: SendResult
     name: Send report to clack channel
-    connectiuon:
+    connections:
       slack: slack_connection
     inputs:
-      Channel: demo
+      Channel: random
       Text: ""
       Blocks: "{{steps.FormatResult.output}}"
+    when: "{{inputs.send_notif}}"
