@@ -146,7 +146,7 @@ def convertBenchToPlaybook(bench, playbook):
 
         sectionId += 2
     
-    last_steps.steps[0].inputs.code = last_steps.steps[0].inputs.code.replace("GeneratedStepsIds", str(output_ids)).replace("BenchmarkName", playbook["name"])
+    last_steps.steps[1].inputs.code = last_steps.steps[1].inputs.code.replace("GeneratedStepsIds", str(output_ids)).replace("BenchmarkName", playbook["name"])
     for step in last_steps.steps:
         playbook["steps"].append(step.toDict())
 
