@@ -1,6 +1,7 @@
 steps:
   - desc: example description delete afterwards
     text: "# "
+  - text: " "
   - action: core.sql
     id: S1
     name: Perform the query

@@ -57,6 +57,8 @@ def parseBenchmark(controlFile):
             if(lines[i].startswith("benchmark")):
                 benchmark["name"] = lines[i].split(' ')[1].replace('"','')
                 while not "children = [" in lines[i]:
+                    if(lines[i].strip().startswith("title")):
+                        benchmark["title"] = lines[i].split(' ')[1].replace('"','')
                     i+=1
                 i+=1
                 while not "]" in lines[i]:
@@ -66,7 +68,7 @@ def parseBenchmark(controlFile):
                     i+=1
             if(lines[i].startswith("control")):
                 controlName = lines[i].split(' ')[1].replace('"','')
-                child = benchmark["children"].index("control."+controlName)
+                child = benchmark["children"].index("control."+controlName) if "control."+controlName in benchmark["children"] else -1
                 i+=1
                 while not lines[i].startswith("}"):
                     sLine = lines[i].split("=")
@@ -101,8 +103,9 @@ def convertBenchToPlaybook(bench, playbook):
 
     for control in bench["controls"]:
         section = DotMap(stepsTemplate["steps"][0])
-        sql = DotMap(stepsTemplate["steps"][1])
-        format_message = DotMap(stepsTemplate["steps"][2])
+        description = DotMap(stepsTemplate["steps"][1])
+        sql = DotMap(stepsTemplate["steps"][2])
+        format_message = DotMap(stepsTemplate["steps"][3])
 
         queryFile = os.path.dirname(__file__) + "/../sqlite/auto/" + control["sql"].replace("query.",'').replace('"','')
         
@@ -113,7 +116,7 @@ def convertBenchToPlaybook(bench, playbook):
         if exists(queryFile):
             # Fill section
             section.text = "#" + control["title"].replace('"','')
-            section.description = control["description"].replace('"','')
+            description.text = control["description"].replace('"','')
             # Fill sql query action
             sql.inputs.sql = " \n " + getQuery(queryFile)
             sql.id = "S"+str(sectionId+1)
@@ -121,6 +124,7 @@ def convertBenchToPlaybook(bench, playbook):
         else:
             # Fill section
             section.text = "#" + control["title"].replace('"','') + " - Not implemented"
+            description.text = control["description"].replace('"','')
             # Fill sql query action
             sql.inputs.sql = "Select * from true"
             sql.id = "S"+str(sectionId+1)
@@ -134,6 +138,7 @@ def convertBenchToPlaybook(bench, playbook):
             format_message.inputs.code = format_message.inputs.code.replace("DefaultSeverity",control['severity'])
         
         playbook["steps"].append(section.toDict())
+        playbook["steps"].append(description.toDict())
         playbook["steps"].append(sql.toDict())
         playbook["steps"].append(format_message.toDict())
 
@@ -162,10 +167,14 @@ def generateControlPlaybooks(controlName):
 
 def main():
 
-   #controlFile = findControlFile("query.apigateway_rest_api_stage_use_ssl_certificate", "/Users/jon/workspace/blink/queries-aws-compliance/foundational_security")
     generateControlPlaybooks("foundational_security")
     generateControlPlaybooks("cis_v130")
     generateControlPlaybooks("cis_v140")
+    generateControlPlaybooks("hipaa")
+    generateControlPlaybooks("pci_v321")
+    generateControlPlaybooks("rbi_cyber_security")
+    generateControlPlaybooks("conformance_pack")
+    #generateControlPlaybooks("test")
 
 
     
