@@ -1,38 +1,35 @@
 connections:
   aws: aws_connection
-desc: This section contains recommendations for configuring AWS DMS resources and
-  options.
+desc: 'This section contains recommendations for configuring AWS Elastic Compute Cloud
+  (EC2).
+
+  '
 inputs:
   send_notif:
     default: true
     display_name: Send Slack Notification
     required: true
     type: checkbox
-name: foundational_security_dms
+name: cis_v140_2_2
 outputs:
   S2: '{{steps.S2.output}}'
-  check_name: foundational_security_dms
+  check_name: cis_v140_2_2
   execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  text: '# 1 AWS Database Migration Service replication instances should not be public'
-- text: This control checks whether AWS DMS replication instances are public. To do
-    this, it examines the value of the PubliclyAccessible field. A private replication
-    instance has a private IP address that you cannot access outside of the replication
-    network. A replication instance should have a private IP address when the source
-    and target databases are in the same network. The network must also be connected
-    to the replication instance's VPC using a VPN, AWS Direct Connect, or VPC peering.
-    To learn more about public and private replication instances, see Public and private
-    replication instances in the AWS Database Migration Service User Guide.
+  text: '# 2.2.1 Ensure EBS volume encryption is enabled'
+- text: Elastic Compute Cloud (EC2) supports encryption at rest when using the Elastic
+    Block Store (EBS) service. While disabled by default, forcing encryption at EBS
+    volume creation is supported.
 - action: core.sql
   desc: Description
   id: S1
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ publicly_accessible then 'alarm'\n    else 'ok'\n  end status,\n  case\n \
-      \   when publicly_accessible then title || ' publicly accessible.'\n    else\
-      \ title || ' not publicly accessible.'\n  end reason,\n  -- Additional Dimensions\n\
-      \  region,\n  account_id\nfrom\n  aws_dms_replication_instance;\n"
+      \ encrypted then 'ok'\n    else 'alarm'\n  end status,\n  case\n    when encrypted\
+      \ then volume_id || ' encrypted.'\n    else volume_id || ' not encrypted.'\n\
+      \  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_ebs_volume;"
   name: Perform the query
 - action: core.python
   desc: Description
@@ -53,10 +50,9 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "1 AWS Database Migration Service replication instances should
-      not be public"
+      check.name = "2.2.1 Ensure EBS volume encryption is enabled"
 
-      check.severity = "critical"
+      check.severity = "DefaultSeverity"
 
 
       print(json.dumps(check.toDict()))'
@@ -72,11 +68,11 @@ steps:
       \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
       \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
       \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
-      : \"plain_text\",\"text\": \":speaker:  foundational_security_dms  :speaker:\"\
-      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
-      \ |  foundational_security_dms Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution\
-      \ = {\"type\":\"section\",\"text\":{\"text\": \":point_right: <\" + execution_url\
-      \ + \"| *Full report available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      : \"plain_text\",\"text\": \":speaker:  cis_v140_2_2  :speaker:\"}}\ncontext_section\
+      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  cis_v140_2_2\
+      \ Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
+      ,\"text\":{\"text\": \":point_right: <\" + execution_url + \"| *Full report\
+      \ available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
       message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
       \nstep_ids = ['S2']\nfor id in step_ids:\n  if context.steps[id].status == 'OK':\n\
       \    message_blocks.append({\"type\":\"divider\"})\n    \n    section = DotMap()\n\
@@ -100,5 +96,5 @@ steps:
 tags:
 - AWS
 - Compliance
-- dms
+- cis_v140
 type: Subflow.playbook

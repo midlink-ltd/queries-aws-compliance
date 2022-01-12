@@ -1,35 +1,339 @@
 connections:
   aws: aws_connection
 desc: ''
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: foundational_security
+outputs:
+  Foundational_security_acm: '{{steps.S1.output}}'
+  Foundational_security_apigateway: '{{steps.S2.output}}'
+  Foundational_security_autoscaling: '{{steps.S3.output}}'
+  Foundational_security_cloudfront: '{{steps.S4.output}}'
+  Foundational_security_cloudtrail: '{{steps.S5.output}}'
+  Foundational_security_codebuild: '{{steps.S6.output}}'
+  Foundational_security_config: '{{steps.S7.output}}'
+  Foundational_security_dms: '{{steps.S8.output}}'
+  Foundational_security_dynamodb: '{{steps.S9.output}}'
+  Foundational_security_ec2: '{{steps.S10.output}}'
+  Foundational_security_efs: '{{steps.S11.output}}'
+  Foundational_security_elb: '{{steps.S12.output}}'
+  Foundational_security_elbv2: '{{steps.S13.output}}'
+  Foundational_security_emr: '{{steps.S14.output}}'
+  Foundational_security_es: '{{steps.S15.output}}'
+  Foundational_security_guardduty: '{{steps.S16.output}}'
+  Foundational_security_iam: '{{steps.S17.output}}'
+  Foundational_security_kms: '{{steps.S18.output}}'
+  Foundational_security_lambda: '{{steps.S19.output}}'
+  Foundational_security_rds: '{{steps.S20.output}}'
+  Foundational_security_redshift: '{{steps.S21.output}}'
+  Foundational_security_s3: '{{steps.S22.output}}'
+  Foundational_security_sagemaker: '{{steps.S23.output}}'
+  Foundational_security_secretsmanager: '{{steps.S24.output}}'
+  Foundational_security_sns: '{{steps.S25.output}}'
+  Foundational_security_ssm: '{{steps.S26.output}}'
+  check_name: foundational_security
+  execution_url: '{{execution_url}}'
 steps:
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_acm
+  desc: Description
+  id: S1
+  inputs:
+    send_notif: false
+  name: Foundational_security_acm
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_apigateway
+  desc: Description
+  id: S2
+  inputs:
+    send_notif: false
+  name: Foundational_security_apigateway
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_autoscaling
+  desc: Description
+  id: S3
+  inputs:
+    send_notif: false
+  name: Foundational_security_autoscaling
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_cloudfront
+  desc: Description
+  id: S4
+  inputs:
+    send_notif: false
+  name: Foundational_security_cloudfront
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_cloudtrail
+  desc: Description
+  id: S5
+  inputs:
+    send_notif: false
+  name: Foundational_security_cloudtrail
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_codebuild
+  desc: Description
+  id: S6
+  inputs:
+    send_notif: false
+  name: Foundational_security_codebuild
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_config
+  desc: Description
+  id: S7
+  inputs:
+    send_notif: false
+  name: Foundational_security_config
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_dms
+  desc: Description
+  id: S8
+  inputs:
+    send_notif: false
+  name: Foundational_security_dms
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_dynamodb
+  desc: Description
+  id: S9
+  inputs:
+    send_notif: false
+  name: Foundational_security_dynamodb
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_ec2
+  desc: Description
+  id: S10
+  inputs:
+    send_notif: false
+  name: Foundational_security_ec2
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_efs
+  desc: Description
+  id: S11
+  inputs:
+    send_notif: false
+  name: Foundational_security_efs
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_elb
+  desc: Description
+  id: S12
+  inputs:
+    send_notif: false
+  name: Foundational_security_elb
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_elbv2
+  desc: Description
+  id: S13
+  inputs:
+    send_notif: false
+  name: Foundational_security_elbv2
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_emr
+  desc: Description
+  id: S14
+  inputs:
+    send_notif: false
+  name: Foundational_security_emr
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_es
+  desc: Description
+  id: S15
+  inputs:
+    send_notif: false
+  name: Foundational_security_es
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_guardduty
+  desc: Description
+  id: S16
+  inputs:
+    send_notif: false
+  name: Foundational_security_guardduty
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_iam
+  desc: Description
+  id: S17
+  inputs:
+    send_notif: false
+  name: Foundational_security_iam
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_kms
+  desc: Description
+  id: S18
+  inputs:
+    send_notif: false
+  name: Foundational_security_kms
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_lambda
+  desc: Description
+  id: S19
+  inputs:
+    send_notif: false
+  name: Foundational_security_lambda
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_rds
+  desc: Description
+  id: S20
+  inputs:
+    send_notif: false
+  name: Foundational_security_rds
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_redshift
+  desc: Description
+  id: S21
+  inputs:
+    send_notif: false
+  name: Foundational_security_redshift
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_s3
+  desc: Description
+  id: S22
+  inputs:
+    send_notif: false
+  name: Foundational_security_s3
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_sagemaker
+  desc: Description
+  id: S23
+  inputs:
+    send_notif: false
+  name: Foundational_security_sagemaker
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_secretsmanager
+  desc: Description
+  id: S24
+  inputs:
+    send_notif: false
+  name: Foundational_security_secretsmanager
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_sns
+  desc: Description
+  id: S25
+  inputs:
+    send_notif: false
+  name: Foundational_security_sns
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Foundational_security_ssm
+  desc: Description
+  id: S26
+  inputs:
+    send_notif: false
+  name: Foundational_security_ssm
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
-    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  foundational_security Check results \",\"type\":\"mrkdwn\"\
-      }]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
-      \nstep_ids = []\nfor id in step_ids:\n  if context.steps[id].status == 'OK':\n\
-      \    message_blocks.append({\"type\":\"divider\"})\n    \n    section = DotMap()\n\
-      \    section.type = \"section\"\n    section.text = DotMap()\n    section.text.type\
-      \ = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
-      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
-      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
-      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
-      \  \nprint(json.dumps(message_blocks))"
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ndef\
+      \ getChildMessage(child):\n  result = []\n  title = DotMap()\n  title.type =\
+      \ \"section\"\n  title.text = DotMap()\n  title.text.type = \"mrkdwn\"\n  title.text.text\
+      \ = \":point_right: :point_right: |   *\"+ child.check_name +\" Checks*  | <\"\
+      \ + child.execution_url + \"| *Full Report Here*>\"\n  \n  result.append({\"\
+      type\":\"divider\"})\n  result.append(title.toDict().copy())\n  \n  for stepId\
+      \ in child:\n    output = child[stepId]\n    if stepId != \"check_name\" and\
+      \ stepId != \"execution_url\":\n      section = DotMap()\n      section.type\
+      \ = \"section\"\n      section.text = DotMap()\n      section.text.type = \"\
+      mrkdwn\"\n      section.text.text = \"\"\n      if output.isAlarm:\n       \
+      \ section.text.text +=  \":x: \"\n      else:\n         section.text.text +=\
+      \  \":white_check_mark: \"\n        \n      section.text.text += output.name[:82]\
+      \ + \"\\n\" if len(output.name) > 82 else output.name\n      \n      result.append(section.toDict().copy())\n\
+      \  \n  return result\n\n\n\n#main\n\ntoday = \"*\" + str(date.today()) +\"*\"\
+      \n\nmessage_blocks = []\nexecution_url = context.server_environment_url + \"\
+      /workspace/\" + context.workspace_id + \"/playbooks/library/playbook?id=\" +\
+      \ context.playbook_id + \"&execution=\" + context.execution_id \nheader = {\"\
+      type\": \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:\
+      \  foundational_security  :speaker:\"}}\ncontext_section = {\"type\":\"context\"\
+      ,\"elements\":[{\"text\": today+\" |  foundational_security Check results \"\
+      ,\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\",\"text\":{\"\
+      text\": \":point_right: <\" + execution_url + \"| *Full report available in\
+      \ Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      message_blocks.append(blink_execution)\n\nstep_ids = ['S1', 'S2', 'S3', 'S4',\
+      \ 'S5', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13', 'S14', 'S15', 'S16',\
+      \ 'S17', 'S18', 'S19', 'S20', 'S21', 'S22', 'S23', 'S24', 'S25', 'S26']\nfor\
+      \ id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      type\":\"divider\"})\n\n    checkHeader = DotMap()\n    checkHeader.type = \"\
+      section\"\n    checkHeader.text = DotMap()\n    checkHeader.text.type = \"mrkdwn\"\
+      \n    checkHeader.text.text = \":point_right: |   *\"+ context.steps[id].output.check_name\
+      \ +\" Checks*  | <\" + context.steps[id].output.execution_url + \"| *Full Report\
+      \ Here*>\"\n    message_blocks.append(checkHeader.toDict().copy())\n    \n \
+      \   for stepId in context.steps[id].output:\n      output = context.steps[id].output[stepId]\n\
+      \      if stepId != \"check_name\" and stepId != \"execution_url\":\n      \
+      \  if \"details\" in output:          \n          section = DotMap()\n     \
+      \     section.type = \"section\"\n          section.text = DotMap()\n      \
+      \    section.text.type = \"mrkdwn\"\n          section.text.text = \"\"\n  \
+      \        if output.isAlarm:\n            section.text.text +=  \":x: \"\n  \
+      \        else:\n            section.text.text +=  \":white_check_mark: \"\n\
+      \        \n          section.text.text += output.name[:82] + \"\\n\" if len(output.name)\
+      \ > 82 else output.name\n          message_blocks.append(section.toDict().copy())\n\
+      \        else:\n          test = getChildMessage(output)\n          message_blocks.extend(test)\n\
+      \n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- aws
+type: Subflow.playbook

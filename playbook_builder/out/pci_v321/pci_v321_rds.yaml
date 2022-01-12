@@ -1,0 +1,156 @@
+connections:
+  aws: aws_connection
+desc: 'This section contains recommendations for configuring AWS RDS resources and
+  options.
+
+  '
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
+name: pci_v321_rds
+outputs:
+  S2: '{{steps.S2.output}}'
+  S4: '{{steps.S4.output}}'
+  check_name: pci_v321_rds
+  execution_url: '{{execution_url}}'
+steps:
+- desc: example description delete afterwards
+  text: '# 1 RDS snapshots should prohibit public access'
+- text: This control checks whether Amazon RDS DB snapshots prohibit access by other
+    accounts. You should also ensure that access to the snapshot and permission to
+    change Amazon RDS configuration is restricted to authorized principals only.
+- action: core.sql
+  desc: Description
+  id: S1
+  inputs:
+    sql: " \n \nselect\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ json_extract(cluster_snapshot.value,'$.AttributeValues') = '[\"all\"]' then\
+      \ 'alarm'\n    else 'ok'\n  end status,\n  case\n    when json_extract(cluster_snapshot.value,'$.AttributeValues')\
+      \ = '[\"all\"]' then title || ' publicly restorable.'\n    else title || ' not\
+      \ publicly restorable.'\n  end reason,\n  -- Additional Dimensions\n  region,\n\
+      \  account_id\nfrom\n  aws_rds_db_cluster_snapshot,\n  json_each(db_cluster_snapshot_attributes)\
+      \ as cluster_snapshot\n\nunion\n\nselect\n  -- Required Columns\n  arn as resource,\n\
+      \  case\n    when json_extract(database_snapshot.value,'$.AttributeValues')\
+      \ = '[\"all\"]' then 'alarm'\n    else 'ok'\n  end status,\n  case\n    when\
+      \ json_extract(database_snapshot.value,'$.AttributeValues') = '[\"all\"]' then\
+      \ title || ' publicly restorable.'\n    else title || ' not publicly restorable.'\n\
+      \  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\nfrom\n\
+      \  aws_rds_db_snapshot,\n  json_each(db_snapshot_attributes) as database_snapshot\n\
+      ;\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S2
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S1.output.rows if ( x[context.steps.S1.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S1.output.rows
+
+      check.name = "1 RDS snapshots should prohibit public access"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: example description delete afterwards
+  text: '# 2 RDS DB Instances should prohibit public access'
+- text: This control checks whether RDS instances are publicly accessible by evaluating
+    the publiclyAccessible field in the instance configuration item. The value of
+    publiclyAccessible indicates whether the DB instance is publicly accessible. When
+    the DB instance is publicly accessible,it is an Internet-facing instance with
+    a publicly resolvable DNS name, which resolves to a public IP address. When the
+    DB instance isn't publicly accessible, it is an internal instance with a DNS name
+    that resolves to a private IP address.
+- action: core.sql
+  desc: Description
+  id: S3
+  inputs:
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ publicly_accessible then 'alarm'\n    else 'ok'\n  end status,\n  case\n \
+      \   when publicly_accessible then title || ' publicly accessible.'\n    else\
+      \ title || ' not publicly accessible.'\n  end reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_rds_db_instance;\n"
+  name: Perform the query
+- action: core.python
+  desc: Description
+  id: S4
+  inputs:
+    code: 'from dotmap import DotMap
+
+      import json
+
+      filtered_on_alarm = [x for x in context.steps.S3.output.rows if ( x[context.steps.S3.output.columns.index(''status'')]
+      == ''alarm'' )]
+
+
+      check = DotMap()
+
+
+      check.isAlarm = len(filtered_on_alarm) > 0
+
+      check.details = context.steps.S3.output.rows
+
+      check.name = "2 RDS DB Instances should prohibit public access"
+
+      check.severity = "critical"
+
+
+      print(json.dumps(check.toDict()))'
+  name: Format Result
+- desc: ' '
+  text: '# Send Report to communication channel'
+- action: core.python
+  desc: Description
+  id: FormatResult
+  inputs:
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nexecution_url =\
+      \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
+      \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
+      \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
+      : \"plain_text\",\"text\": \":speaker:  pci_v321_rds  :speaker:\"}}\ncontext_section\
+      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  pci_v321_rds\
+      \ Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
+      ,\"text\":{\"text\": \":point_right: <\" + execution_url + \"| *Full report\
+      \ available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
+      \nstep_ids = ['S2', 'S4']\nfor id in step_ids:\n  if context.steps[id].status\
+      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
+      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
+      \ + \"\\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+  name: Format Final Result
+- action: slack.SendMessage
+  connections:
+    slack: slack_connection
+  id: SendResult
+  inputs:
+    Blocks: '{{steps.FormatResult.output}}'
+    Channel: random
+    Text: ''
+  name: Send report to clack channel
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- pci_v321
+- rds
+type: Subflow.playbook

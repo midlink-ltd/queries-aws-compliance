@@ -56,6 +56,15 @@ def getTagsFromLocals(lines, localStartIndex):
             tags[nLine[0].strip()].append(sLine[1].strip().replace('"',''))
     return tags
 
+def cleanupBenchmark(benchmarks):
+    result = DotMap()
+    
+    for key in benchmarks:
+      if len([y for y in benchmarks[key].controls if not isinstance(y, str)]):
+        result[key] = benchmarks[key].copy()
+
+    return result
+
 def parseBenchmark(controlFile):
     benchmark = DotMap()
     benchmark.name = ""
@@ -113,8 +122,8 @@ def parseBenchmark(controlFile):
                 for parent in parent_benchmarks:
                     parent.controls[parent.controls.index(controlName)] = control.copy()
             i+=1
-   
-    return benchmarks 
+    
+    return cleanupBenchmark(benchmarks) 
             
 def getQuery(queryFile):
 
@@ -132,7 +141,7 @@ def getDescriptionFromDocumentation(doc):
             lines = stream.readlines()
             i = 0
             while i < len(lines):
-                while not lines[i].strip().endswith("Overview"):
+                while not lines[i].strip().endswith("Overview") and not lines[i].strip().endswith("Description"):
                     i+=1
                 i+=1
                 while lines[i].strip().replace("\n","") == "":
@@ -263,12 +272,12 @@ def generateControlPlaybooks(controlName, defaultTags=["Compliance"]):
 
 def main():
     
-    # generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
-    # generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
-    # generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
-    # generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
-    # generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
-    generateControlPlaybooks("test")
+    generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
+    generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
+    generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
+    generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
+    generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
+    #generateControlPlaybooks("test")
 
 
     

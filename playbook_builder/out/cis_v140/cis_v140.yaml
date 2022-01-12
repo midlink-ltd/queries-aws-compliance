@@ -1,34 +1,128 @@
 connections:
   aws: aws_connection
 desc: ''
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: cis_v140
+outputs:
+  Cis_v140_1: '{{steps.S1.output}}'
+  Cis_v140_2: '{{steps.S2.output}}'
+  Cis_v140_3: '{{steps.S3.output}}'
+  Cis_v140_4: '{{steps.S4.output}}'
+  Cis_v140_5: '{{steps.S5.output}}'
+  check_name: cis_v140
+  execution_url: '{{execution_url}}'
 steps:
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Cis_v140_1
+  desc: Description
+  id: S1
+  inputs:
+    send_notif: false
+  name: Cis_v140_1
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Cis_v140_2
+  desc: Description
+  id: S2
+  inputs:
+    send_notif: false
+  name: Cis_v140_2
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Cis_v140_3
+  desc: Description
+  id: S3
+  inputs:
+    send_notif: false
+  name: Cis_v140_3
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Cis_v140_4
+  desc: Description
+  id: S4
+  inputs:
+    send_notif: false
+  name: Cis_v140_4
+- desc: example description delete afterwards
+  text: '# '
+- text: ' '
+- action: playbooks.Cis_v140_5
+  desc: Description
+  id: S5
+  inputs:
+    send_notif: false
+  name: Cis_v140_5
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
-    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  cis_v140\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  cis_v140 Check results \",\"type\":\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\n\
-      message_blocks.append(context_section)\n\nstep_ids = []\nfor id in step_ids:\n\
-      \  if context.steps[id].status == 'OK':\n    message_blocks.append({\"type\"\
-      :\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
-      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
-      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
-      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
-      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
-      \\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+    code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ndef\
+      \ getChildMessage(child):\n  result = []\n  title = DotMap()\n  title.type =\
+      \ \"section\"\n  title.text = DotMap()\n  title.text.type = \"mrkdwn\"\n  title.text.text\
+      \ = \":point_right: :point_right: |   *\"+ child.check_name +\" Checks*  | <\"\
+      \ + child.execution_url + \"| *Full Report Here*>\"\n  \n  result.append({\"\
+      type\":\"divider\"})\n  result.append(title.toDict().copy())\n  \n  for stepId\
+      \ in child:\n    output = child[stepId]\n    if stepId != \"check_name\" and\
+      \ stepId != \"execution_url\":\n      section = DotMap()\n      section.type\
+      \ = \"section\"\n      section.text = DotMap()\n      section.text.type = \"\
+      mrkdwn\"\n      section.text.text = \"\"\n      if output.isAlarm:\n       \
+      \ section.text.text +=  \":x: \"\n      else:\n         section.text.text +=\
+      \  \":white_check_mark: \"\n        \n      section.text.text += output.name[:82]\
+      \ + \"\\n\" if len(output.name) > 82 else output.name\n      \n      result.append(section.toDict().copy())\n\
+      \  \n  return result\n\n\n\n#main\n\ntoday = \"*\" + str(date.today()) +\"*\"\
+      \n\nmessage_blocks = []\nexecution_url = context.server_environment_url + \"\
+      /workspace/\" + context.workspace_id + \"/playbooks/library/playbook?id=\" +\
+      \ context.playbook_id + \"&execution=\" + context.execution_id \nheader = {\"\
+      type\": \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:\
+      \  cis_v140  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\"\
+      :[{\"text\": today+\" |  cis_v140 Check results \",\"type\":\"mrkdwn\"}]}\n\
+      blink_execution = {\"type\":\"section\",\"text\":{\"text\": \":point_right:\
+      \ <\" + execution_url + \"| *Full report available in Blink*>\" ,\"type\":\"\
+      mrkdwn\"}}\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      message_blocks.append(blink_execution)\n\nstep_ids = ['S1', 'S2', 'S3', 'S4',\
+      \ 'S5']\nfor id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      type\":\"divider\"})\n\n    checkHeader = DotMap()\n    checkHeader.type = \"\
+      section\"\n    checkHeader.text = DotMap()\n    checkHeader.text.type = \"mrkdwn\"\
+      \n    checkHeader.text.text = \":point_right: |   *\"+ context.steps[id].output.check_name\
+      \ +\" Checks*  | <\" + context.steps[id].output.execution_url + \"| *Full Report\
+      \ Here*>\"\n    message_blocks.append(checkHeader.toDict().copy())\n    \n \
+      \   for stepId in context.steps[id].output:\n      output = context.steps[id].output[stepId]\n\
+      \      if stepId != \"check_name\" and stepId != \"execution_url\":\n      \
+      \  if \"details\" in output:          \n          section = DotMap()\n     \
+      \     section.type = \"section\"\n          section.text = DotMap()\n      \
+      \    section.text.type = \"mrkdwn\"\n          section.text.text = \"\"\n  \
+      \        if output.isAlarm:\n            section.text.text +=  \":x: \"\n  \
+      \        else:\n            section.text.text +=  \":white_check_mark: \"\n\
+      \        \n          section.text.text += output.name[:82] + \"\\n\" if len(output.name)\
+      \ > 82 else output.name\n          message_blocks.append(section.toDict().copy())\n\
+      \        else:\n          test = getChildMessage(output)\n          message_blocks.extend(test)\n\
+      \n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- cis_v140
+- aws
+type: Subflow.playbook

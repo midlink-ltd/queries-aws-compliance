@@ -1,18 +1,32 @@
 connections:
   aws: aws_connection
-desc: ''
+desc: This section contains recommendations for configuring Elastic Load Balancer
+  resources and options.
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: foundational_security_elb
+outputs:
+  S2: '{{steps.S2.output}}'
+  S4: '{{steps.S4.output}}'
+  S6: '{{steps.S6.output}}'
+  S8: '{{steps.S8.output}}'
+  check_name: foundational_security_elb
+  execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  description: This control checks whether your Classic Load Balancer listeners are
-    configured with HTTPS or TLS protocol for front-end (client to load balancer)
-    connections. The control is applicable if a Classic Load Balancer has listeners.
-    If your Classic Load Balancer does not have a listener configured, then the control
-    does not report any findings. The control passes if the Classic Load Balancer
-    listeners are configured with TLS or HTTPS for front-end connections. The control
-    fails if the listener is not configured with TLS or HTTPS for front-end connections.
-  text: '#3 Classic Load Balancer listeners should be configured with HTTPS or TLS
+  text: '# 3 Classic Load Balancer listeners should be configured with HTTPS or TLS
     termination'
+- text: This control checks whether your Classic Load Balancer listeners are configured
+    with HTTPS or TLS protocol for front-end (client to load balancer) connections.
+    The control is applicable if a Classic Load Balancer has listeners. If your Classic
+    Load Balancer does not have a listener configured, then the control does not report
+    any findings. The control passes if the Classic Load Balancer listeners are configured
+    with TLS or HTTPS for front-end connections. The control fails if the listener
+    is not configured with TLS or HTTPS for front-end connections.
 - action: core.sql
   desc: Description
   id: S1
@@ -48,7 +62,7 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "#3 Classic Load Balancer listeners should be configured with HTTPS
+      check.name = "3 Classic Load Balancer listeners should be configured with HTTPS
       or TLS termination"
 
       check.severity = "medium"
@@ -59,6 +73,11 @@ steps:
 - desc: example description delete afterwards
   text: '#4 Application load balancers should be configured to drop HTTP headers -
     Not implemented'
+- text: This control evaluates AWS Application Load Balancers (ALB) to ensure they
+    are configured to drop invalid HTTP headers. The control fails if the value of
+    routing.http.drop_invalid_header_fields.enabled is set to false. By default, ALBs
+    are not configured to drop invalid HTTP header values. Removing these header values
+    prevents HTTP desync attacks.
 - action: core.sql
   desc: Description
   id: S3
@@ -85,8 +104,8 @@ steps:
 
       check.details = context.steps.S3.output.rows
 
-      check.name = "#4 Application load balancers should be configured to drop HTTP
-      headers - Not implemented"
+      check.name = "4 Application load balancers should be configured to drop HTTP
+      headers"
 
       check.severity = "medium"
 
@@ -97,6 +116,9 @@ steps:
 - desc: example description delete afterwards
   text: '#5 Application and Classic Load Balancers logging should be enabled - Not
     implemented'
+- text: This control checks whether the Application Load Balancer and the Classic
+    Load Balancer have logging enabled. The control fails if access_logs.s3.enabled
+    is false.
 - action: core.sql
   desc: Description
   id: S5
@@ -123,8 +145,7 @@ steps:
 
       check.details = context.steps.S5.output.rows
 
-      check.name = "#5 Application and Classic Load Balancers logging should be enabled
-      - Not implemented"
+      check.name = "5 Application and Classic Load Balancers logging should be enabled"
 
       check.severity = "medium"
 
@@ -135,6 +156,9 @@ steps:
 - desc: example description delete afterwards
   text: '#6 Application Load Balancer deletion protection should be enabled - Not
     implemented'
+- text: This control checks whether an Application Load Balancer has deletion protection
+    enabled. The control fails if deletion protection is not configured. Enable deletion
+    protection to protect your Application Load Balancer from deletion.
 - action: core.sql
   desc: Description
   id: S7
@@ -161,8 +185,7 @@ steps:
 
       check.details = context.steps.S7.output.rows
 
-      check.name = "#6 Application Load Balancer deletion protection should be enabled
-      - Not implemented"
+      check.name = "6 Application Load Balancer deletion protection should be enabled"
 
       check.severity = "medium"
 
@@ -170,33 +193,44 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
   when: 'False'
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
     code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_elb\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  foundational_security_elb Check results \",\"type\":\"mrkdwn\"\
-      }]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nexecution_url =\
+      \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
+      \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
+      \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
+      : \"plain_text\",\"text\": \":speaker:  foundational_security_elb  :speaker:\"\
+      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
+      \ |  foundational_security_elb Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution\
+      \ = {\"type\":\"section\",\"text\":{\"text\": \":point_right: <\" + execution_url\
+      \ + \"| *Full report available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
       \nstep_ids = ['S2', 'S4', 'S6', 'S8']\nfor id in step_ids:\n  if context.steps[id].status\
       \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
       \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
       \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
       \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
       \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
-      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
-      \  \nprint(json.dumps(message_blocks))"
+      \ + \"\\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- elb
+type: Subflow.playbook

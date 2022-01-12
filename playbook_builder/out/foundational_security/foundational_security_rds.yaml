@@ -1,15 +1,38 @@
 connections:
   aws: aws_connection
-desc: ''
+desc: This section contains recommendations for configuring AWS RDS resources and
+  options.
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: foundational_security_rds
+outputs:
+  S10: '{{steps.S10.output}}'
+  S12: '{{steps.S12.output}}'
+  S14: '{{steps.S14.output}}'
+  S16: '{{steps.S16.output}}'
+  S18: '{{steps.S18.output}}'
+  S2: '{{steps.S2.output}}'
+  S20: '{{steps.S20.output}}'
+  S22: '{{steps.S22.output}}'
+  S24: '{{steps.S24.output}}'
+  S26: '{{steps.S26.output}}'
+  S4: '{{steps.S4.output}}'
+  S6: '{{steps.S6.output}}'
+  S8: '{{steps.S8.output}}'
+  check_name: foundational_security_rds
+  execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  description: This control checks whether Amazon RDS snapshots are public. This control
+  text: '# 1 RDS snapshots should be private'
+- text: This control checks whether Amazon RDS snapshots are public. This control
     is intended for RDS instances. It can also return findings for snapshots of Aurora
     DB instances, Neptune DB instances, and Amazon DocumentDB clusters, even though
     they are not evaluated for public accessibility. If these findings are not useful,
     you can suppress them.
-  text: '#1 RDS snapshots should be private'
 - action: core.sql
   desc: Description
   id: S1
@@ -48,7 +71,7 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "#1 RDS snapshots should be private"
+      check.name = "1 RDS snapshots should be private"
 
       check.severity = "critical"
 
@@ -56,13 +79,13 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: 'This control checks whether Amazon RDS instances are publicly accessible
+  text: '# 2 RDS DB instances should prohibit public access, determined by the PubliclyAccessible
+    configuration'
+- text: 'This control checks whether Amazon RDS instances are publicly accessible
     by evaluating the PubliclyAccessible field in the instance configuration item.
     Neptune DB instances and Amazon DocumentDB clusters do not have the PubliclyAccessible
     flag and cannot be evaluated. However, this control can still generate findings
     for these resources. You can suppress these findings. '
-  text: '#2 RDS DB instances should prohibit public access, determined by the PubliclyAccessible
-    configuration'
 - action: core.sql
   desc: Description
   id: S3
@@ -92,8 +115,8 @@ steps:
 
       check.details = context.steps.S3.output.rows
 
-      check.name = "#2 RDS DB instances should prohibit public access, determined
-      by the PubliclyAccessible configuration"
+      check.name = "2 RDS DB instances should prohibit public access, determined by
+      the PubliclyAccessible configuration"
 
       check.severity = "critical"
 
@@ -101,12 +124,11 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether storage encryption is enabled for your
-    Amazon RDS DB instances. This control is intended for RDS DB instances. However,
-    it can also generate findings for Aurora DB instances, Neptune DB instances, and
-    Amazon DocumentDB clusters. If these findings are not useful, then you can suppress
-    them.
-  text: '#3 RDS DB instances should have encryption at rest enabled'
+  text: '# 3 RDS DB instances should have encryption at rest enabled'
+- text: This control checks whether storage encryption is enabled for your Amazon
+    RDS DB instances. This control is intended for RDS DB instances. However, it can
+    also generate findings for Aurora DB instances, Neptune DB instances, and Amazon
+    DocumentDB clusters. If these findings are not useful, then you can suppress them.
 - action: core.sql
   desc: Description
   id: S5
@@ -136,7 +158,7 @@ steps:
 
       check.details = context.steps.S5.output.rows
 
-      check.name = "#3 RDS DB instances should have encryption at rest enabled"
+      check.name = "3 RDS DB instances should have encryption at rest enabled"
 
       check.severity = "medium"
 
@@ -144,11 +166,11 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether RDS DB snapshots are encrypted. This control
-    is intended for RDS DB instances. However, it can also generate findings for snapshots
+  text: '# 4 RDS cluster snapshots and database snapshots should be encrypted at rest'
+- text: This control checks whether RDS DB snapshots are encrypted. This control is
+    intended for RDS DB instances. However, it can also generate findings for snapshots
     of Aurora DB instances, Neptune DB instances, and Amazon DocumentDB clusters.
     If these findings are not useful, then you can suppress them.
-  text: '#4 RDS cluster snapshots and database snapshots should be encrypted at rest'
 - action: core.sql
   desc: Description
   id: S7
@@ -183,7 +205,7 @@ steps:
 
       check.details = context.steps.S7.output.rows
 
-      check.name = "#4 RDS cluster snapshots and database snapshots should be encrypted
+      check.name = "4 RDS cluster snapshots and database snapshots should be encrypted
       at rest"
 
       check.severity = "medium"
@@ -194,6 +216,11 @@ steps:
 - desc: example description delete afterwards
   text: '#5 RDS DB instances should be configured with multiple Availability Zones
     - Not implemented'
+- text: This control checks whether high availability is enabled for your RDS DB instances.
+    RDS DB instances should be configured for multiple Availability Zones (AZs). This
+    ensures the availability of the data stored. Multi-AZ deployments allow for automated
+    failover if there is an issue with Availability Zone availability and during regular
+    RDS maintenance.
 - action: core.sql
   desc: Description
   id: S9
@@ -220,8 +247,8 @@ steps:
 
       check.details = context.steps.S9.output.rows
 
-      check.name = "#5 RDS DB instances should be configured with multiple Availability
-      Zones - Not implemented"
+      check.name = "5 RDS DB instances should be configured with multiple Availability
+      Zones"
 
       check.severity = "medium"
 
@@ -230,14 +257,14 @@ steps:
   name: Format Result
   when: 'False'
 - desc: example description delete afterwards
-  description: This control checks whether enhanced monitoring is enabled for your
-    RDS DB instances. In Amazon RDS, Enhanced Monitoring enables a more rapid response
-    to performance changes in underlying infrastructure. These performance changes
-    could result in a lack of availability of the data. Enhanced Monitoring provides
-    real-time metrics of the operating system that your RDS DB instance runs on. An
-    agent is installed on the instance. The agent can obtain metrics more accurately
-    than is possible from the hypervisor layer.
-  text: '#6 Enhanced monitoring should be configured for RDS DB instances and clusters'
+  text: '# 6 Enhanced monitoring should be configured for RDS DB instances and clusters'
+- text: This control checks whether enhanced monitoring is enabled for your RDS DB
+    instances. In Amazon RDS, Enhanced Monitoring enables a more rapid response to
+    performance changes in underlying infrastructure. These performance changes could
+    result in a lack of availability of the data. Enhanced Monitoring provides real-time
+    metrics of the operating system that your RDS DB instance runs on. An agent is
+    installed on the instance. The agent can obtain metrics more accurately than is
+    possible from the hypervisor layer.
 - action: core.sql
   desc: Description
   id: S11
@@ -275,7 +302,7 @@ steps:
 
       check.details = context.steps.S11.output.rows
 
-      check.name = "#6 Enhanced monitoring should be configured for RDS DB instances
+      check.name = "6 Enhanced monitoring should be configured for RDS DB instances
       and clusters"
 
       check.severity = "low"
@@ -284,11 +311,11 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether RDS clusters have deletion protection enabled.
+  text: '# 7 RDS clusters should have deletion protection enabled'
+- text: This control checks whether RDS clusters have deletion protection enabled.
     This control is intended for RDS DB instances. However, it can also generate findings
     for Aurora DB instances, Neptune DB instances, and Amazon DocumentDB clusters.
     If these findings are not useful,then you can suppress them.
-  text: '#7 RDS clusters should have deletion protection enabled'
 - action: core.sql
   desc: Description
   id: S13
@@ -318,7 +345,7 @@ steps:
 
       check.details = context.steps.S13.output.rows
 
-      check.name = "#7 RDS clusters should have deletion protection enabled"
+      check.name = "7 RDS clusters should have deletion protection enabled"
 
       check.severity = "low"
 
@@ -326,10 +353,9 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: 'This control checks whether your RDS DB instances that use one of
-    the listed database engines have deletion protection enabled. DatabaseEngines:
-    mariadb,mysql,oracle-ee,oracle-se2,oracle-se1,oracle-se,postgres,sqlserver-ee,sqlserver-se,sqlserver-ex,sqlserver-web.'
-  text: '#8 RDS DB instances should have deletion protection enabled'
+  text: '# 8 RDS DB instances should have deletion protection enabled'
+- text: 'This control checks whether your RDS DB instances that use one of the listed
+    database engines have deletion protection enabled. DatabaseEngines: mariadb,mysql,oracle-ee,oracle-se2,oracle-se1,oracle-se,postgres,sqlserver-ee,sqlserver-se,sqlserver-ex,sqlserver-web.'
 - action: core.sql
   desc: Description
   id: S15
@@ -359,7 +385,7 @@ steps:
 
       check.details = context.steps.S15.output.rows
 
-      check.name = "#8 RDS DB instances should have deletion protection enabled"
+      check.name = "8 RDS DB instances should have deletion protection enabled"
 
       check.severity = "low"
 
@@ -368,6 +394,10 @@ steps:
   name: Format Result
 - desc: example description delete afterwards
   text: '#9 Database logging should be enabled - Not implemented'
+- text: This control checks whether the logs of Amazon RDS are enabled and sent to
+    CloudWatch Logs. RDS databases should have relevant logs enabled. Database logging
+    provides detailed records of requests made to RDS. Database logs can assist with
+    security and access audits and can help to diagnose availability issues.
 - action: core.sql
   desc: Description
   id: S17
@@ -394,7 +424,7 @@ steps:
 
       check.details = context.steps.S17.output.rows
 
-      check.name = "#9 Database logging should be enabled - Not implemented"
+      check.name = "9 Database logging should be enabled"
 
       check.severity = "medium"
 
@@ -403,11 +433,11 @@ steps:
   name: Format Result
   when: 'False'
 - desc: example description delete afterwards
-  description: This control checks whether an RDS DB instance has IAM database authentication
+  text: '# 10 IAM authentication should be configured for RDS instances'
+- text: This control checks whether an RDS DB instance has IAM database authentication
     enabled IAM database authentication allows authentication to database instances
     with an authentication token instead of a password. Network traffic to and from
     the database is encrypted using SSL.
-  text: '#10 IAM authentication should be configured for RDS instances'
 - action: core.sql
   desc: Description
   id: S19
@@ -438,7 +468,7 @@ steps:
 
       check.details = context.steps.S19.output.rows
 
-      check.name = "#10 IAM authentication should be configured for RDS instances"
+      check.name = "10 IAM authentication should be configured for RDS instances"
 
       check.severity = "medium"
 
@@ -446,11 +476,11 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether an RDS DB cluster has IAM database authentication
+  text: '# 12 IAM authentication should be configured for RDS clusters'
+- text: This control checks whether an RDS DB cluster has IAM database authentication
     enabled. IAM database authentication allows for password-free authentication to
     database instances. The authentication uses an authentication token. Network traffic
     to and from the database is encrypted using SSL.
-  text: '#12 IAM authentication should be configured for RDS clusters'
 - action: core.sql
   desc: Description
   id: S21
@@ -481,7 +511,7 @@ steps:
 
       check.details = context.steps.S21.output.rows
 
-      check.name = "#12 IAM authentication should be configured for RDS clusters"
+      check.name = "12 IAM authentication should be configured for RDS clusters"
 
       check.severity = "medium"
 
@@ -489,12 +519,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether automatic minor version upgrades are enabled
-    for the RDS database instance. Enabling automatic minor version upgrades ensures
-    that the latest minor version updates to the relational database management system
+  text: '# 13 RDS automatic minor version upgrades should be enabled'
+- text: This control checks whether automatic minor version upgrades are enabled for
+    the RDS database instance. Enabling automatic minor version upgrades ensures that
+    the latest minor version updates to the relational database management system
     (RDBMS) are installed. These upgrades might include security patches and bug fixes.
     Keeping up to date with patch installation is an important step in securing systems.
-  text: '#13 RDS automatic minor version upgrades should be enabled'
 - action: core.sql
   desc: Description
   id: S23
@@ -525,7 +555,7 @@ steps:
 
       check.details = context.steps.S23.output.rows
 
-      check.name = "#13 RDS automatic minor version upgrades should be enabled"
+      check.name = "13 RDS automatic minor version upgrades should be enabled"
 
       check.severity = "high"
 
@@ -534,6 +564,10 @@ steps:
   name: Format Result
 - desc: example description delete afterwards
   text: '#14 Amazon Aurora clusters should have backtracking enabled - Not implemented'
+- text: This control checks whether Amazon Aurora clusters have backtracking enabled.
+    Backups help you to recover more quickly from a security incident. They also strengthens
+    the resilience of your systems. Aurora backtracking reduces the time to recover
+    a database to a point in time. It does not require a database restore to so.
 - action: core.sql
   desc: Description
   id: S25
@@ -560,8 +594,7 @@ steps:
 
       check.details = context.steps.S25.output.rows
 
-      check.name = "#14 Amazon Aurora clusters should have backtracking enabled -
-      Not implemented"
+      check.name = "14 Amazon Aurora clusters should have backtracking enabled"
 
       check.severity = "medium"
 
@@ -569,16 +602,23 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
   when: 'False'
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
     code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_rds\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  foundational_security_rds Check results \",\"type\":\"mrkdwn\"\
-      }]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nexecution_url =\
+      \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
+      \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
+      \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
+      : \"plain_text\",\"text\": \":speaker:  foundational_security_rds  :speaker:\"\
+      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
+      \ |  foundational_security_rds Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution\
+      \ = {\"type\":\"section\",\"text\":{\"text\": \":point_right: <\" + execution_url\
+      \ + \"| *Full report available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
       \nstep_ids = ['S2', 'S4', 'S6', 'S8', 'S10', 'S12', 'S14', 'S16', 'S18', 'S20',\
       \ 'S22', 'S24', 'S26']\nfor id in step_ids:\n  if context.steps[id].status ==\
       \ 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
@@ -586,17 +626,21 @@ steps:
       \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
       \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
       \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
-      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
-      \  \nprint(json.dumps(message_blocks))"
+      \ + \"\\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- rds
+type: Subflow.playbook

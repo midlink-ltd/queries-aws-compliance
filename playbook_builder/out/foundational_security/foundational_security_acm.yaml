@@ -1,11 +1,26 @@
 connections:
   aws: aws_connection
-desc: ''
+desc: 'This section contains recommendations for configuring ACM resources.
+
+  '
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: foundational_security_acm
+outputs:
+  S2: '{{steps.S2.output}}'
+  check_name: foundational_security_acm
+  execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
   text: '#1 Imported ACM certificates should be renewed after a specified time period
     - Not implemented'
+- text: This control checks whether ACM certificates in your account are marked for
+    expiration within 30 days. It checks both imported certificates and certificates
+    provided by AWS Certificate Manager.
 - action: core.sql
   desc: Description
   id: S1
@@ -32,8 +47,8 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "#1 Imported ACM certificates should be renewed after a specified
-      time period - Not implemented"
+      check.name = "1 Imported ACM certificates should be renewed after a specified
+      time period"
 
       check.severity = "medium"
 
@@ -41,33 +56,44 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
   when: 'False'
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
     code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_acm\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  foundational_security_acm Check results \",\"type\":\"mrkdwn\"\
-      }]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nexecution_url =\
+      \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
+      \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
+      \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
+      : \"plain_text\",\"text\": \":speaker:  foundational_security_acm  :speaker:\"\
+      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
+      \ |  foundational_security_acm Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution\
+      \ = {\"type\":\"section\",\"text\":{\"text\": \":point_right: <\" + execution_url\
+      \ + \"| *Full report available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
       \nstep_ids = ['S2']\nfor id in step_ids:\n  if context.steps[id].status == 'OK':\n\
       \    message_blocks.append({\"type\":\"divider\"})\n    \n    section = DotMap()\n\
       \    section.type = \"section\"\n    section.text = DotMap()\n    section.text.type\
       \ = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
       \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
       \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
-      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
-      \  \nprint(json.dumps(message_blocks))"
+      \ + \"\\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- acm
+type: Subflow.playbook

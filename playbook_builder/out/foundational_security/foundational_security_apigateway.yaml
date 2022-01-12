@@ -1,13 +1,24 @@
 connections:
   aws: aws_connection
-desc: ''
+desc: This section contains recommendations for configuring API Gateway resources.
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: foundational_security_apigateway
+outputs:
+  S2: '{{steps.S2.output}}'
+  S4: '{{steps.S4.output}}'
+  check_name: foundational_security_apigateway
+  execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  description: This control checks whether all stages of an Amazon API Gateway REST
-    or WebSocket API have logging enabled. The control fails if logging is not enabled
-    for all methods of a stage or if loggingLevel is neither ERROR nor INFO.
-  text: '#1 API Gateway REST and WebSocket API logging should be enabled'
+  text: '# 1 API Gateway REST and WebSocket API logging should be enabled'
+- text: This control checks whether all stages of an Amazon API Gateway REST or WebSocket
+    API have logging enabled. The control fails if logging is not enabled for all
+    methods of a stage or if loggingLevel is neither ERROR nor INFO.
 - action: core.sql
   desc: Description
   id: S1
@@ -45,7 +56,7 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "#1 API Gateway REST and WebSocket API logging should be enabled"
+      check.name = "1 API Gateway REST and WebSocket API logging should be enabled"
 
       check.severity = "medium"
 
@@ -53,11 +64,11 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether Amazon API Gateway REST API stages have
-    SSL certificates configured. Backend systems use these certificates to authenticate
-    that incoming requests are from API Gateway.
-  text: '#2 API Gateway REST API stages should be configured to use SSL certificates
+  text: '# 2 API Gateway REST API stages should be configured to use SSL certificates
     for backend authentication'
+- text: This control checks whether Amazon API Gateway REST API stages have SSL certificates
+    configured. Backend systems use these certificates to authenticate that incoming
+    requests are from API Gateway.
 - action: core.sql
   desc: Description
   id: S3
@@ -88,7 +99,7 @@ steps:
 
       check.details = context.steps.S3.output.rows
 
-      check.name = "#2 API Gateway REST API stages should be configured to use SSL
+      check.name = "2 API Gateway REST API stages should be configured to use SSL
       certificates for backend authentication"
 
       check.severity = "medium"
@@ -96,33 +107,45 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
     code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_apigateway\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  foundational_security_apigateway Check results \",\"type\"\
-      :\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
-      \nstep_ids = ['S2', 'S4']\nfor id in step_ids:\n  if context.steps[id].status\
-      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
-      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
-      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
-      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
-      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
-      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
-      \  \nprint(json.dumps(message_blocks))"
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nexecution_url =\
+      \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
+      \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
+      \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
+      : \"plain_text\",\"text\": \":speaker:  foundational_security_apigateway  :speaker:\"\
+      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
+      \ |  foundational_security_apigateway Check results \",\"type\":\"mrkdwn\"}]}\n\
+      blink_execution = {\"type\":\"section\",\"text\":{\"text\": \":point_right:\
+      \ <\" + execution_url + \"| *Full report available in Blink*>\" ,\"type\":\"\
+      mrkdwn\"}}\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      message_blocks.append(blink_execution)\n\nstep_ids = ['S2', 'S4']\nfor id in\
+      \ step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
+      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
+      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
+      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
+      \\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- apigateway
+type: Subflow.playbook

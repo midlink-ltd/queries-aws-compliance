@@ -1,7 +1,7 @@
 connections:
   aws: aws_connection
-desc: 'This section contains recommendations for configuring AWS Relational Database
-  Services (RDS).
+desc: 'This section contains recommendations for configuring CloudWatch resources
+  and options.
 
   '
 inputs:
@@ -10,27 +10,42 @@ inputs:
     display_name: Send Slack Notification
     required: true
     type: checkbox
-name: cis_v140_2_3
+name: pci_v321_cw
 outputs:
   S2: '{{steps.S2.output}}'
-  check_name: cis_v140_2_3
+  check_name: pci_v321_cw
   execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  text: '# 2.3.1 Ensure that encryption is enabled for RDS Instances'
-- text: Amazon RDS encrypted DB instances use the industry standard AES-256 encryption
-    algorithm to encrypt your data on the server that hosts your Amazon RDS DB instances.
-    After your data is encrypted, Amazon RDS handles authentication of access and
-    decryption of your data transparently with a minimal impact on performance.
+  text: '# 1 A log metric filter and alarm should exist for usage of the ''root''
+    user'
+- text: 'This control checks for the CloudWatch metric filters using the following
+    pattern: { $.userIdentity.type'
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ storage_encrypted then 'ok'\n    else 'alarm'\n  end as status,\n  case\n\
-      \    when storage_encrypted then title || ' encrypted at rest.'\n    else title\
-      \ || ' not encrypted at rest.'\n  end as reason,\n  -- Additional Dimensions\n\
-      \  region,\n  account_id\nfrom\n  aws_rds_db_instance;"
+    sql: " \n with filter_data as (\n  select\n    trail.account_id,\n    trail.name\
+      \ as trail_name,\n    trail.is_logging,\n    split_part(trail.log_group_arn,\
+      \ ':', 7) as log_group_name,\n    filter.name as filter_name,\n    action_arn.value\
+      \ as topic_arn,\n    alarm.metric_name,\n    subscription.subscription_arn,\n\
+      \    filter.filter_pattern\n  from\n    aws_cloudtrail_trail as trail,\n   \
+      \ json_each(trail.event_selectors) as se,\n    aws_cloudwatch_log_metric_filter\
+      \ as filter,\n    aws_cloudwatch_alarm as alarm,\n    json_each(alarm.alarm_actions)\
+      \ as action_arn,\n    aws_sns_topic_subscription as subscription\n  where\n\
+      \    trail.is_multi_region_trail is true\n    and trail.is_logging\n    and\
+      \ json_extract(se.value,'$.ReadWriteType') = 'All'\n    and trail.log_group_arn\
+      \ is not null\n    and filter.log_group_name = split_part(trail.log_group_arn,\
+      \ ':', 7)\n    and like_regex(filter.filter_pattern, '\\s*\\$\\.userIdentity.type\\\
+      s*=\\s*\"Root\"')\n    and alarm.metric_name = filter.metric_transformation_name\n\
+      \    and subscription.topic_arn = action_arn.value\n)\nselect\n  -- Required\
+      \ Columns\n  'arn:' || a.partition || ':::' || a.account_id as resource,\n \
+      \ case\n    when f.trail_name is null then 'alarm'\n    else 'ok'\n  end as\
+      \ status,\n  case\n    when f.trail_name is null then 'No log metric filter\
+      \ and alarm exist for usage of \"root\" account.'\n    else filter_name || '\
+      \ forwards events for usage of \"root\" account.'\n  end as reason,\n  -- Additional\
+      \ Dimensions\n  a.account_id\nfrom\n  aws_account as a\n  left join filter_data\
+      \ as f on a.account_id = f.account_id\nlimit 1\n"
   name: Perform the query
 - action: core.python
   desc: Description
@@ -51,9 +66,10 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "2.3.1 Ensure that encryption is enabled for RDS Instances"
+      check.name = "1 A log metric filter and alarm should exist for usage of the
+      ''root'' user"
 
-      check.severity = "DefaultSeverity"
+      check.severity = "critical"
 
 
       print(json.dumps(check.toDict()))'
@@ -69,9 +85,9 @@ steps:
       \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
       \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
       \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
-      : \"plain_text\",\"text\": \":speaker:  cis_v140_2_3  :speaker:\"}}\ncontext_section\
-      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  cis_v140_2_3\
-      \ Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
+      : \"plain_text\",\"text\": \":speaker:  pci_v321_cw  :speaker:\"}}\ncontext_section\
+      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  pci_v321_cw Check\
+      \ results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
       ,\"text\":{\"text\": \":point_right: <\" + execution_url + \"| *Full report\
       \ available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
       message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
@@ -97,5 +113,6 @@ steps:
 tags:
 - AWS
 - Compliance
-- cis_v140
+- pci_v321
+- cloudwatch
 type: Subflow.playbook

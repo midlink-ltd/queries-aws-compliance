@@ -1,13 +1,16 @@
 connections:
   aws: aws_connection
-desc: This section contains recommendations for configuring AWS S3 resources and options.
+desc: 'This section contains recommendations for configuring AWS S3 resources and
+  options.
+
+  '
 inputs:
   send_notif:
     default: true
     display_name: Send Slack Notification
     required: true
     type: checkbox
-name: foundational_security_s3
+name: pci_v321_s3
 outputs:
   S10: '{{steps.S10.output}}'
   S12: '{{steps.S12.output}}'
@@ -15,30 +18,30 @@ outputs:
   S4: '{{steps.S4.output}}'
   S6: '{{steps.S6.output}}'
   S8: '{{steps.S8.output}}'
-  check_name: foundational_security_s3
+  check_name: pci_v321_s3
   execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  text: '# 1 S3 Block Public Access setting should be enabled'
-- text: This control checks whether the following Amazon S3 public access block settings
-    are configured at the account level
+  text: '# 1 S3 buckets should prohibit public write access'
+- text: This control checks whether your S3 buckets allow public write access by evaluating
+    the Block Public Access settings, the bucket policy, and the bucket access control
+    list (ACL). It does not check for write access to the bucket by internal principals,
+    such as IAM roles. You should ensure that access to the bucket is restricted to
+    authorized principals only.
 - action: core.sql
   desc: Description
   id: S1
   inputs:
-    sql: " \n select\n  -- Required Columns\n  'arn' || ':' || 'aws' || ':::' || account_id\
-      \ as resource,\n  case\n    when block_public_acls\n      and block_public_policy\n\
-      \      and ignore_public_acls\n      and restrict_public_buckets\n      then\
-      \ 'ok'\n    else 'alarm'\n  end as status,\n  case\n    when block_public_acls\n\
-      \      and block_public_policy\n      and ignore_public_acls\n      and restrict_public_buckets\n\
-      \      then 'Account level public access blocks enabled.'\n    else 'Account\
-      \ level public access not enabled for: ' ||\n      concat_ws(', ',\n       \
-      \ case when not (block_public_acls ) then 'block_public_acls' end,\n       \
-      \ case when not (block_public_policy) then 'block_public_policy' end,\n    \
-      \    case when not (ignore_public_acls ) then 'ignore_public_acls' end,\n  \
-      \      case when not (restrict_public_buckets) then 'restrict_public_buckets'\
-      \ end\n      ) || '.'\n  end as reason,\n  -- Additional Dimensions\n  account_id\n\
-      from\n  aws_s3_account_settings;"
+    sql: " \n with data as (\n  select\n    distinct name\n  from\n    aws_s3_bucket,\n\
+      \    json_each(acl, '$.Grants') as grants\n  where\n    json_extract(grants.value,'$.Grantee.URI')\
+      \ = '\"http://acs.amazonaws.com/groups/global/AllUsers\"'\n    and (\n     \
+      \ json_extract(grants.value,'$.Permission') = '\"FULL_CONTROL\"'\n      or json_extract(grants.value,'$.Permission')\
+      \ = '\"WRITE_ACP\"'\n    )\n  )\nselect\n  -- Required Columns\n  b.arn as resource,\n\
+      \  case\n    when d.name is null then 'ok'\n    else 'alarm'\n  end status,\n\
+      \  case\n    when d.name is null then b.title || ' not publicly writable.'\n\
+      \    else b.title || ' publicly writable.'\n  end reason,\n  -- Additional Dimensions\n\
+      \  b.region,\n  b.account_id\nfrom\n  aws_s3_bucket as b\n  left join data as\
+      \ d on b.name = d.name;"
   name: Perform the query
 - action: core.python
   desc: Description
@@ -59,18 +62,22 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "1 S3 Block Public Access setting should be enabled"
+      check.name = "1 S3 buckets should prohibit public write access"
 
-      check.severity = "medium"
+      check.severity = "critical"
 
 
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
   text: '# 2 S3 buckets should prohibit public read access'
-- text: This control checks whether your S3 buckets allow public read access. It evaluates
+- text: This control checks whether your S3 buckets allow public read access by evaluating
     the Block Public Access settings, the bucket policy, and the bucket access control
-    list (ACL).
+    list (ACL). Unless you explicitly require everyone on the internet to be able
+    to write to your S3 bucket, you should ensure that your S3 bucket is not publicly
+    writable. It does not check for read access to the bucket by internal principals,
+    such as IAM roles. You should ensure that access to the bucket is restricted to
+    authorized principals only.
 - action: core.sql
   desc: Description
   id: S3
@@ -113,24 +120,24 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  text: '# 3 S3 buckets should prohibit public write access'
-- text: This control checks whether your S3 buckets allow public write access. It
-    evaluates the block public access settings, the bucket policy, and the bucket
-    access control list (ACL).
+  text: '# 3 S3 buckets should have cross-region replication enabled'
+- text: This control checks whether S3 buckets have cross-region replication enabled.
+    PCI DSS does not require data replication or highly available configurations.
+    However, this check aligns with AWS best practices for this control.
 - action: core.sql
   desc: Description
   id: S5
   inputs:
-    sql: " \n with data as (\n  select\n    distinct name\n  from\n    aws_s3_bucket,\n\
-      \    json_each(acl, '$.Grants') as grants\n  where\n    json_extract(grants.value,'$.Grantee.URI')\
-      \ = '\"http://acs.amazonaws.com/groups/global/AllUsers\"'\n    and (\n     \
-      \ json_extract(grants.value,'$.Permission') = '\"FULL_CONTROL\"'\n      or json_extract(grants.value,'$.Permission')\
-      \ = '\"WRITE_ACP\"'\n    )\n  )\nselect\n  -- Required Columns\n  b.arn as resource,\n\
-      \  case\n    when d.name is null then 'ok'\n    else 'alarm'\n  end status,\n\
-      \  case\n    when d.name is null then b.title || ' not publicly writable.'\n\
-      \    else b.title || ' publicly writable.'\n  end reason,\n  -- Additional Dimensions\n\
-      \  b.region,\n  b.account_id\nfrom\n  aws_s3_bucket as b\n  left join data as\
-      \ d on b.name = d.name;"
+    sql: " \n with bucket_with_replication as (\n  select\n    name,\n    json_extract(r.value,'$.Status')\
+      \ as rep_status\n  from\n    aws_s3_bucket,\n    json_each(replication, '$.Rules\
+      \ ') as r\n)\nselect\n  -- Required Columns\n  b.arn as resource,\n  case\n\
+      \    when b.name = bwr.name and bwr.rep_status = '\"Enabled\"' then 'ok'\n \
+      \   else 'alarm'\n  end as status,\n  case\n    when b.name = bwr.name and bwr.rep_status\
+      \ = '\"Enabled\"' then b.title || ' enabled with cross-region replication.'\n\
+      \    else b.title || ' not enabled with cross-region replication.'\n  end as\
+      \ reason,\n  -- Additional Dimensions\n  b.region,\n  b.account_id\nfrom\n \
+      \ aws_s3_bucket b\n  left join bucket_with_replication bwr on b.name = bwr.name;\n\
+      \n"
   name: Perform the query
 - action: core.python
   desc: Description
@@ -151,18 +158,21 @@ steps:
 
       check.details = context.steps.S5.output.rows
 
-      check.name = "3 S3 buckets should prohibit public write access"
+      check.name = "3 S3 buckets should have cross-region replication enabled"
 
-      check.severity = "critical"
+      check.severity = "low"
 
 
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
   text: '# 4 S3 buckets should have server-side encryption enabled'
-- text: This control checks that your S3 bucket either has Amazon S3 default encryption
-    enabled or that the S3 bucket policy explicitly denies put-object requests without
-    server-side encryption.
+- text: This control checks that your Amazon S3 bucket either has Amazon S3 default
+    encryption enabled or that the S3 bucket policy explicitly denies put-object requests
+    without server-side encryption. When you set default encryption on a bucket, all
+    new objects stored in the bucket are encrypted when they are stored, including
+    clear text PAN data. Server-side encryption for all of the objects stored in a
+    bucket can also be enforced using a bucket policy.
 - action: core.sql
   desc: Description
   id: S7
@@ -202,10 +212,10 @@ steps:
   name: Format Result
 - desc: example description delete afterwards
   text: '# 5 S3 buckets should require requests to use Secure Socket Layer'
-- text: 'This control checks whether S3 buckets have policies that require requests
-    to use Secure Socket Layer (SSL). S3 buckets should have policies that require
-    all requests (Action: S3:*)to only accept transmission of data over HTTPS in the
-    S3 resource policy, indicated by the condition key aws:SecureTransport.'
+- text: 'This control checks whether Amazon S3 buckets have policies that require
+    requests to use Secure Socket Layer (SSL). S3 buckets should have policies that
+    require all requests (Action: S3:*)to only accept transmission of data over HTTPS
+    in the S3 resource policy, indicated by the condition key aws:SecureTransport.'
 - action: core.sql
   desc: Description
   id: S9
@@ -250,17 +260,36 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  text: '#6 Amazon S3 permissions granted to other AWS accounts in bucket policies
-    should be restricted - Not implemented'
-- text: This control checks whether the S3 bucket policy prevents principals from
-    other AWS accounts from performing denied actions on resources in the S3 bucket.
+  text: '# 6 S3 Block Public Access setting should be enabled'
+- text: This control checks whether the following public access block settings are
+    configured at the account level. The control passes if all of the public access
+    block settings are set to true. The control fails if any of the settings are set
+    to false, or if any of the settings are not configured. When the settings do not
+    have a value, the AWS Config rule cannot complete its evaluation.
 - action: core.sql
   desc: Description
   id: S11
   inputs:
-    sql: Select * from true
+    sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
+      \ (bucket.block_public_acls or s3account.block_public_acls)\n      and (bucket.block_public_policy\
+      \ or s3account.block_public_policy)\n      and (bucket.ignore_public_acls or\
+      \ s3account.ignore_public_acls)\n      and (bucket.restrict_public_buckets or\
+      \ s3account.restrict_public_buckets)\n      then 'ok'\n    else 'alarm'\n  end\
+      \ as status,\n  case\n    when (bucket.block_public_acls or s3account.block_public_acls)\n\
+      \      and (bucket.block_public_policy or s3account.block_public_policy)\n \
+      \     and (bucket.ignore_public_acls or s3account.ignore_public_acls)\n    \
+      \  and (bucket.restrict_public_buckets or s3account.restrict_public_buckets)\n\
+      \      then name || ' all public access blocks enabled.'\n    else name || '\
+      \ not enabled for: ' ||\n      concat_ws(', ',\n        case when not (bucket.block_public_acls\
+      \ or s3account.block_public_acls) then 'block_public_acls' end,\n        case\
+      \ when not (bucket.block_public_policy or s3account.block_public_policy) then\
+      \ 'block_public_policy' end,\n        case when not (bucket.ignore_public_acls\
+      \ or s3account.ignore_public_acls) then 'ignore_public_acls' end,\n        case\
+      \ when not (bucket.restrict_public_buckets or s3account.restrict_public_buckets)\
+      \ then 'restrict_public_buckets' end\n      ) || '.'\n  end as reason,\n  --\
+      \ Additional Dimensions\n  bucket.region,\n  bucket.account_id\nfrom\n  aws_s3_bucket\
+      \ as bucket,\n  aws_s3_account_settings as s3account;\n"
   name: Perform the query
-  when: 'False'
 - action: core.python
   desc: Description
   id: S12
@@ -280,15 +309,13 @@ steps:
 
       check.details = context.steps.S11.output.rows
 
-      check.name = "6 Amazon S3 permissions granted to other AWS accounts in bucket
-      policies should be restricted"
+      check.name = "6 S3 Block Public Access setting should be enabled"
 
-      check.severity = "high"
+      check.severity = "medium"
 
 
       print(json.dumps(check.toDict()))'
   name: Format Result
-  when: 'False'
 - desc: ' '
   text: '# Send Report to communication channel'
 - action: core.python
@@ -300,11 +327,11 @@ steps:
       \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
       \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
       \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
-      : \"plain_text\",\"text\": \":speaker:  foundational_security_s3  :speaker:\"\
-      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
-      \ |  foundational_security_s3 Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution\
-      \ = {\"type\":\"section\",\"text\":{\"text\": \":point_right: <\" + execution_url\
-      \ + \"| *Full report available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      : \"plain_text\",\"text\": \":speaker:  pci_v321_s3  :speaker:\"}}\ncontext_section\
+      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  pci_v321_s3 Check\
+      \ results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
+      ,\"text\":{\"text\": \":point_right: <\" + execution_url + \"| *Full report\
+      \ available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
       message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
       \nstep_ids = ['S2', 'S4', 'S6', 'S8', 'S10', 'S12']\nfor id in step_ids:\n \
       \ if context.steps[id].status == 'OK':\n    message_blocks.append({\"type\"\
@@ -329,5 +356,6 @@ steps:
 tags:
 - AWS
 - Compliance
+- pci_v321
 - s3
 type: Subflow.playbook

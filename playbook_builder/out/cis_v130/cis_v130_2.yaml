@@ -7,61 +7,31 @@ inputs:
     display_name: Send Slack Notification
     required: true
     type: checkbox
-name: cis_v130
+name: cis_v130_2
 outputs:
-  Cis_v130_1: '{{steps.S1.output}}'
-  Cis_v130_2: '{{steps.S2.output}}'
-  Cis_v130_3: '{{steps.S3.output}}'
-  Cis_v130_4: '{{steps.S4.output}}'
-  Cis_v130_5: '{{steps.S5.output}}'
-  check_name: cis_v130
+  Cis_v130_2_1: '{{steps.S1.output}}'
+  Cis_v130_2_2: '{{steps.S2.output}}'
+  check_name: cis_v130_2
   execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
   text: '# '
 - text: ' '
-- action: playbooks.Cis_v130_1
+- action: playbooks.Cis_v130_2_1
   desc: Description
   id: S1
   inputs:
     send_notif: false
-  name: Cis_v130_1
+  name: Cis_v130_2_1
 - desc: example description delete afterwards
   text: '# '
 - text: ' '
-- action: playbooks.Cis_v130_2
+- action: playbooks.Cis_v130_2_2
   desc: Description
   id: S2
   inputs:
     send_notif: false
-  name: Cis_v130_2
-- desc: example description delete afterwards
-  text: '# '
-- text: ' '
-- action: playbooks.Cis_v130_3
-  desc: Description
-  id: S3
-  inputs:
-    send_notif: false
-  name: Cis_v130_3
-- desc: example description delete afterwards
-  text: '# '
-- text: ' '
-- action: playbooks.Cis_v130_4
-  desc: Description
-  id: S4
-  inputs:
-    send_notif: false
-  name: Cis_v130_4
-- desc: example description delete afterwards
-  text: '# '
-- text: ' '
-- action: playbooks.Cis_v130_5
-  desc: Description
-  id: S5
-  inputs:
-    send_notif: false
-  name: Cis_v130_5
+  name: Cis_v130_2_2
 - desc: ' '
   text: '# Send Report to communication channel'
 - action: core.python
@@ -86,13 +56,13 @@ steps:
       /workspace/\" + context.workspace_id + \"/playbooks/library/playbook?id=\" +\
       \ context.playbook_id + \"&execution=\" + context.execution_id \nheader = {\"\
       type\": \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:\
-      \  cis_v130  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\"\
-      :[{\"text\": today+\" |  cis_v130 Check results \",\"type\":\"mrkdwn\"}]}\n\
+      \  cis_v130_2  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\"\
+      :[{\"text\": today+\" |  cis_v130_2 Check results \",\"type\":\"mrkdwn\"}]}\n\
       blink_execution = {\"type\":\"section\",\"text\":{\"text\": \":point_right:\
       \ <\" + execution_url + \"| *Full report available in Blink*>\" ,\"type\":\"\
       mrkdwn\"}}\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
-      message_blocks.append(blink_execution)\n\nstep_ids = ['S1', 'S2', 'S3', 'S4',\
-      \ 'S5']\nfor id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      message_blocks.append(blink_execution)\n\nstep_ids = ['S1', 'S2']\nfor id in\
+      \ step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
       type\":\"divider\"})\n\n    checkHeader = DotMap()\n    checkHeader.type = \"\
       section\"\n    checkHeader.text = DotMap()\n    checkHeader.text.type = \"mrkdwn\"\
       \n    checkHeader.text.text = \":point_right: |   *\"+ context.steps[id].output.check_name\
@@ -124,5 +94,4 @@ tags:
 - AWS
 - Compliance
 - cis_v130
-- aws
 type: Subflow.playbook

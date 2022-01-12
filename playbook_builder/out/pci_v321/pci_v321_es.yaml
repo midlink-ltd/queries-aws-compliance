@@ -1,36 +1,37 @@
 connections:
   aws: aws_connection
-desc: This section contains recommendations for configuring Elasticsearch resources
+desc: 'This section contains recommendations for configuring Elasticsearch resources
   and options.
+
+  '
 inputs:
   send_notif:
     default: true
     display_name: Send Slack Notification
     required: true
     type: checkbox
-name: foundational_security_es
+name: pci_v321_es
 outputs:
   S2: '{{steps.S2.output}}'
   S4: '{{steps.S4.output}}'
-  S6: '{{steps.S6.output}}'
-  check_name: foundational_security_es
+  check_name: pci_v321_es
   execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  text: '# 1 Elasticsearch domains should have encryption at-rest enabled'
-- text: This control checks whether Amazon Elasticsearch Service (Amazon ES) domains
-    have encryption at rest configuration enabled. The check fails if encryption at
-    rest is not enabled.
+  text: '# 1 Amazon Elasticsearch Service domains should be in a VPC'
+- text: This control checks whether Amazon Elasticsearch Service domains are in a
+    VPC. It does not evaluate the VPC subnet routing configuration to determine public
+    reachability.
 - action: core.sql
   desc: Description
   id: S1
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ json_extract(encryption_at_rest_options,'$.Enabled') = 'false' then 'alarm'\n\
-      \    else 'ok'\n  end status,\n  case\n    when json_extract(encryption_at_rest_options,'$.Enabled')\
-      \ = 'false' then title || ' encryption at rest not enabled.'\n    else title\
-      \ || ' encryption at rest enabled.'\n  end reason,\n  -- Additional Dimensions\n\
-      \  region,\n  account_id\nfrom\n  aws_elasticsearch_domain;\n"
+      \ json_extract(vpc_options,'$.VPCId') is null then 'alarm'\n    else 'ok'\n\
+      \  end status,\n  case\n    when json_extract(vpc_options,'$.VPCId') is null\
+      \ then title || ' not in VPC.'\n    else title || ' in VPC ' || (json_extract(vpc_options,'$.VPCId'))\
+      \ || '.'\n  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
+      from\n  aws_elasticsearch_domain;"
   name: Perform the query
 - action: core.python
   desc: Description
@@ -51,28 +52,27 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "1 Elasticsearch domains should have encryption at-rest enabled"
+      check.name = "1 Amazon Elasticsearch Service domains should be in a VPC"
 
-      check.severity = "medium"
+      check.severity = "critical"
 
 
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  text: '# 2 Amazon Elasticsearch Service domains should be in a VPC'
-- text: This control checks whether Amazon Elasticsearch Service domains are in a
-    VPC. It does not evaluate the VPC subnet routing configuration to determine public
-    access. You should ensure that Amazon ES domains are not attached to public subnets.
+  text: '# 2 Amazon Elasticsearch Service domains should have encryption at rest enabled'
+- text: This control checks whether Amazon ES domains have encryption at rest configuration
+    enabled.
 - action: core.sql
   desc: Description
   id: S3
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ json_extract(vpc_options,'$.VPCId') is null then 'alarm'\n    else 'ok'\n\
-      \  end status,\n  case\n    when json_extract(vpc_options,'$.VPCId') is null\
-      \ then title || ' not in VPC.'\n    else title || ' in VPC ' || (json_extract(vpc_options,'$.VPCId'))\
-      \ || '.'\n  end reason,\n  -- Additional Dimensions\n  region,\n  account_id\n\
-      from\n  aws_elasticsearch_domain;"
+      \ json_extract(encryption_at_rest_options,'$.Enabled') = 'false' then 'alarm'\n\
+      \    else 'ok'\n  end status,\n  case\n    when json_extract(encryption_at_rest_options,'$.Enabled')\
+      \ = 'false' then title || ' encryption at rest not enabled.'\n    else title\
+      \ || ' encryption at rest enabled.'\n  end reason,\n  -- Additional Dimensions\n\
+      \  region,\n  account_id\nfrom\n  aws_elasticsearch_domain;\n"
   name: Perform the query
 - action: core.python
   desc: Description
@@ -93,53 +93,14 @@ steps:
 
       check.details = context.steps.S3.output.rows
 
-      check.name = "2 Amazon Elasticsearch Service domains should be in a VPC"
-
-      check.severity = "critical"
-
-
-      print(json.dumps(check.toDict()))'
-  name: Format Result
-- desc: example description delete afterwards
-  text: '#3 Amazon Elasticsearch Service domains should encrypt data sent between
-    nodes - Not implemented'
-- text: This control checks whether Amazon ES domains have node-to-node encryption
-    enabled.
-- action: core.sql
-  desc: Description
-  id: S5
-  inputs:
-    sql: Select * from true
-  name: Perform the query
-  when: 'False'
-- action: core.python
-  desc: Description
-  id: S6
-  inputs:
-    code: 'from dotmap import DotMap
-
-      import json
-
-      filtered_on_alarm = [x for x in context.steps.S5.output.rows if ( x[context.steps.S5.output.columns.index(''status'')]
-      == ''alarm'' )]
-
-
-      check = DotMap()
-
-
-      check.isAlarm = len(filtered_on_alarm) > 0
-
-      check.details = context.steps.S5.output.rows
-
-      check.name = "3 Amazon Elasticsearch Service domains should encrypt data sent
-      between nodes"
+      check.name = "2 Amazon Elasticsearch Service domains should have encryption
+      at rest enabled"
 
       check.severity = "medium"
 
 
       print(json.dumps(check.toDict()))'
   name: Format Result
-  when: 'False'
 - desc: ' '
   text: '# Send Report to communication channel'
 - action: core.python
@@ -151,13 +112,13 @@ steps:
       \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
       \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
       \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
-      : \"plain_text\",\"text\": \":speaker:  foundational_security_es  :speaker:\"\
-      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
-      \ |  foundational_security_es Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution\
-      \ = {\"type\":\"section\",\"text\":{\"text\": \":point_right: <\" + execution_url\
-      \ + \"| *Full report available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      : \"plain_text\",\"text\": \":speaker:  pci_v321_es  :speaker:\"}}\ncontext_section\
+      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  pci_v321_es Check\
+      \ results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
+      ,\"text\":{\"text\": \":point_right: <\" + execution_url + \"| *Full report\
+      \ available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
       message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
-      \nstep_ids = ['S2', 'S4', 'S6']\nfor id in step_ids:\n  if context.steps[id].status\
+      \nstep_ids = ['S2', 'S4']\nfor id in step_ids:\n  if context.steps[id].status\
       \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
       \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
       \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
@@ -179,5 +140,6 @@ steps:
 tags:
 - AWS
 - Compliance
+- pci_v321
 - es
 type: Subflow.playbook

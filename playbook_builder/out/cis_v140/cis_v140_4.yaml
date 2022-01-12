@@ -1,14 +1,41 @@
 connections:
   aws: aws_connection
-desc: ''
+desc: 'This section contains recommendations for configuring AWS to assist with monitoring
+  and responding to account activities.
+
+  '
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: cis_v140_4
+outputs:
+  S10: '{{steps.S10.output}}'
+  S12: '{{steps.S12.output}}'
+  S14: '{{steps.S14.output}}'
+  S16: '{{steps.S16.output}}'
+  S18: '{{steps.S18.output}}'
+  S2: '{{steps.S2.output}}'
+  S20: '{{steps.S20.output}}'
+  S22: '{{steps.S22.output}}'
+  S24: '{{steps.S24.output}}'
+  S26: '{{steps.S26.output}}'
+  S28: '{{steps.S28.output}}'
+  S30: '{{steps.S30.output}}'
+  S4: '{{steps.S4.output}}'
+  S6: '{{steps.S6.output}}'
+  S8: '{{steps.S8.output}}'
+  check_name: cis_v140_4
+  execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.1 Ensure a log metric filter and alarm exist for unauthorized API calls'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for unauthorized
     API calls.
-  text: '#4.1 Ensure a log metric filter and alarm exist for unauthorized API calls'
 - action: core.sql
   desc: Description
   id: S1
@@ -57,7 +84,7 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "#4.1 Ensure a log metric filter and alarm exist for unauthorized
+      check.name = "4.1 Ensure a log metric filter and alarm exist for unauthorized
       API calls"
 
       check.severity = "DefaultSeverity"
@@ -66,12 +93,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.2 Ensure a log metric filter and alarm exist for Management Console sign-in
+    without MFA'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for console logins
     that are not protected by multi-factor authentication (MFA).
-  text: '#4.2 Ensure a log metric filter and alarm exist for Management Console sign-in
-    without MFA'
 - action: core.sql
   desc: Description
   id: S3
@@ -118,7 +145,7 @@ steps:
 
       check.details = context.steps.S3.output.rows
 
-      check.name = "#4.2 Ensure a log metric filter and alarm exist for Management
+      check.name = "4.2 Ensure a log metric filter and alarm exist for Management
       Console sign-in without MFA"
 
       check.severity = "DefaultSeverity"
@@ -127,11 +154,11 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.3 Ensure a log metric filter and alarm exist for usage of ''root'' account'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for root login
     attempts.
-  text: '#4.3 Ensure a log metric filter and alarm exist for usage of ''root'' account'
 - action: core.sql
   desc: Description
   id: S5
@@ -177,7 +204,7 @@ steps:
 
       check.details = context.steps.S5.output.rows
 
-      check.name = "#4.3 Ensure a log metric filter and alarm exist for usage of ''root''
+      check.name = "4.3 Ensure a log metric filter and alarm exist for usage of ''root''
       account"
 
       check.severity = "DefaultSeverity"
@@ -186,11 +213,11 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.4 Ensure a log metric filter and alarm exist for IAM policy changes'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established changes made to
     Identity and Access Management (IAM) policies.
-  text: '#4.4 Ensure a log metric filter and alarm exist for IAM policy changes'
 - action: core.sql
   desc: Description
   id: S7
@@ -243,7 +270,7 @@ steps:
 
       check.details = context.steps.S7.output.rows
 
-      check.name = "#4.4 Ensure a log metric filter and alarm exist for IAM policy
+      check.name = "4.4 Ensure a log metric filter and alarm exist for IAM policy
       changes"
 
       check.severity = "DefaultSeverity"
@@ -252,12 +279,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.5 Ensure a log metric filter and alarm exist for CloudTrail configuration
+    changes'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for detecting
     changes to CloudTrail's configurations.
-  text: '#4.5 Ensure a log metric filter and alarm exist for CloudTrail configuration
-    changes'
 - action: core.sql
   desc: Description
   id: S9
@@ -305,7 +332,7 @@ steps:
 
       check.details = context.steps.S9.output.rows
 
-      check.name = "#4.5 Ensure a log metric filter and alarm exist for CloudTrail
+      check.name = "4.5 Ensure a log metric filter and alarm exist for CloudTrail
       configuration changes"
 
       check.severity = "DefaultSeverity"
@@ -314,12 +341,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.6 Ensure a log metric filter and alarm exist for AWS Management Console
+    authentication failures'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for failed console
     authentication attempts.
-  text: '#4.6 Ensure a log metric filter and alarm exist for AWS Management Console
-    authentication failures'
 - action: core.sql
   desc: Description
   id: S11
@@ -366,7 +393,7 @@ steps:
 
       check.details = context.steps.S11.output.rows
 
-      check.name = "#4.6 Ensure a log metric filter and alarm exist for AWS Management
+      check.name = "4.6 Ensure a log metric filter and alarm exist for AWS Management
       Console authentication failures"
 
       check.severity = "DefaultSeverity"
@@ -375,12 +402,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.7 Ensure a log metric filter and alarm exist for disabling or scheduled
+    deletion of customer created CMKs'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for customer created
     CMKs which have changed state to disabled or scheduled deletion.
-  text: '#4.7 Ensure a log metric filter and alarm exist for disabling or scheduled
-    deletion of customer created CMKs'
 - action: core.sql
   desc: Description
   id: S13
@@ -427,8 +454,8 @@ steps:
 
       check.details = context.steps.S13.output.rows
 
-      check.name = "#4.7 Ensure a log metric filter and alarm exist for disabling
-      or scheduled deletion of customer created CMKs"
+      check.name = "4.7 Ensure a log metric filter and alarm exist for disabling or
+      scheduled deletion of customer created CMKs"
 
       check.severity = "DefaultSeverity"
 
@@ -436,11 +463,11 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.8 Ensure a log metric filter and alarm exist for S3 bucket policy changes'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for changes to
     S3 bucket policies.
-  text: '#4.8 Ensure a log metric filter and alarm exist for S3 bucket policy changes'
 - action: core.sql
   desc: Description
   id: S15
@@ -490,8 +517,8 @@ steps:
 
       check.details = context.steps.S15.output.rows
 
-      check.name = "#4.8 Ensure a log metric filter and alarm exist for S3 bucket
-      policy changes"
+      check.name = "4.8 Ensure a log metric filter and alarm exist for S3 bucket policy
+      changes"
 
       check.severity = "DefaultSeverity"
 
@@ -499,12 +526,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.9 Ensure a log metric filter and alarm exist for AWS Config configuration
+    changes'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for detecting
     changes to CloudTrail's configurations.
-  text: '#4.9 Ensure a log metric filter and alarm exist for AWS Config configuration
-    changes'
 - action: core.sql
   desc: Description
   id: S17
@@ -552,7 +579,7 @@ steps:
 
       check.details = context.steps.S17.output.rows
 
-      check.name = "#4.9 Ensure a log metric filter and alarm exist for AWS Config
+      check.name = "4.9 Ensure a log metric filter and alarm exist for AWS Config
       configuration changes"
 
       check.severity = "DefaultSeverity"
@@ -561,12 +588,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.10 Ensure a log metric filter and alarm exist for security group changes'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     Security Groups are a stateful packet filter that controls ingress and egress
     traffic within a VPC. It is recommended that a metric filter and alarm be established
     for detecting changes to Security Groups.
-  text: '#4.10 Ensure a log metric filter and alarm exist for security group changes'
 - action: core.sql
   desc: Description
   id: S19
@@ -614,8 +641,8 @@ steps:
 
       check.details = context.steps.S19.output.rows
 
-      check.name = "#4.10 Ensure a log metric filter and alarm exist for security
-      group changes"
+      check.name = "4.10 Ensure a log metric filter and alarm exist for security group
+      changes"
 
       check.severity = "DefaultSeverity"
 
@@ -623,13 +650,13 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.11 Ensure a log metric filter and alarm exist for changes to Network
+    Access Control Lists (NACL)'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     NACLs are used as a stateless packet filter to control ingress and egress traffic
     for subnets within a VPC. It is recommended that a metric filter and alarm be
     established for changes made to NACLs.
-  text: '#4.11 Ensure a log metric filter and alarm exist for changes to Network Access
-    Control Lists (NACL)'
 - action: core.sql
   desc: Description
   id: S21
@@ -677,7 +704,7 @@ steps:
 
       check.details = context.steps.S21.output.rows
 
-      check.name = "#4.11 Ensure a log metric filter and alarm exist for changes to
+      check.name = "4.11 Ensure a log metric filter and alarm exist for changes to
       Network Access Control Lists (NACL)"
 
       check.severity = "DefaultSeverity"
@@ -686,12 +713,13 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.12 Ensure a log metric filter and alarm exist for changes to network
+    gateways'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     Network gateways are required to send/receive traffic to a destination outside
     of a VPC. It is recommended that a metric filter and alarm be established for
     changes to network gateways.
-  text: '#4.12 Ensure a log metric filter and alarm exist for changes to network gateways'
 - action: core.sql
   desc: Description
   id: S23
@@ -740,7 +768,7 @@ steps:
 
       check.details = context.steps.S23.output.rows
 
-      check.name = "#4.12 Ensure a log metric filter and alarm exist for changes to
+      check.name = "4.12 Ensure a log metric filter and alarm exist for changes to
       network gateways"
 
       check.severity = "DefaultSeverity"
@@ -749,12 +777,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.13 Ensure a log metric filter and alarm exist for route table changes'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     Routing tables are used to route network traffic between subnets and to network
     gateways. It is recommended that a metric filter and alarm be established for
     changes to route tables.
-  text: '#4.13 Ensure a log metric filter and alarm exist for route table changes'
 - action: core.sql
   desc: Description
   id: S25
@@ -803,7 +831,7 @@ steps:
 
       check.details = context.steps.S25.output.rows
 
-      check.name = "#4.13 Ensure a log metric filter and alarm exist for route table
+      check.name = "4.13 Ensure a log metric filter and alarm exist for route table
       changes"
 
       check.severity = "DefaultSeverity"
@@ -812,13 +840,13 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.14 Ensure a log metric filter and alarm exist for VPC changes'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is possible to have more than 1 VPC within an account, in addition it is also
     possible to create a peer connection between 2 VPCs enabling network traffic to
     route between VPCs. It is recommended that a metric filter and alarm be established
     for changes made to VPCs.
-  text: '#4.14 Ensure a log metric filter and alarm exist for VPC changes'
 - action: core.sql
   desc: Description
   id: S27
@@ -869,7 +897,7 @@ steps:
 
       check.details = context.steps.S27.output.rows
 
-      check.name = "#4.14 Ensure a log metric filter and alarm exist for VPC changes"
+      check.name = "4.14 Ensure a log metric filter and alarm exist for VPC changes"
 
       check.severity = "DefaultSeverity"
 
@@ -877,11 +905,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Real-time monitoring of API calls can be achieved by directing CloudTrail
+  text: '# 4.15 Ensure a log metric filter and alarm exists for AWS Organizations
+    changes'
+- text: Real-time monitoring of API calls can be achieved by directing CloudTrail
     Logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
     It is recommended that a metric filter and alarm be established for AWS Organizations
     changes made in the master AWS Account.
-  text: '#4.15 Ensure a log metric filter and alarm exists for AWS Organizations changes'
 - action: core.sql
   desc: Description
   id: S29
@@ -937,7 +966,7 @@ steps:
 
       check.details = context.steps.S29.output.rows
 
-      check.name = "#4.15 Ensure a log metric filter and alarm exists for AWS Organizations
+      check.name = "4.15 Ensure a log metric filter and alarm exists for AWS Organizations
       changes"
 
       check.severity = "DefaultSeverity"
@@ -945,33 +974,45 @@ steps:
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
     code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  cis_v140_4\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  cis_v140_4 Check results \",\"type\":\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\n\
-      message_blocks.append(context_section)\n\nstep_ids = ['S2', 'S4', 'S6', 'S8',\
-      \ 'S10', 'S12', 'S14', 'S16', 'S18', 'S20', 'S22', 'S24', 'S26', 'S28', 'S30']\n\
-      for id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
-      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
-      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
-      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
-      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
-      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
-      \\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nexecution_url =\
+      \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
+      \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
+      \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
+      : \"plain_text\",\"text\": \":speaker:  cis_v140_4  :speaker:\"}}\ncontext_section\
+      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  cis_v140_4 Check\
+      \ results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
+      ,\"text\":{\"text\": \":point_right: <\" + execution_url + \"| *Full report\
+      \ available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
+      \nstep_ids = ['S2', 'S4', 'S6', 'S8', 'S10', 'S12', 'S14', 'S16', 'S18', 'S20',\
+      \ 'S22', 'S24', 'S26', 'S28', 'S30']\nfor id in step_ids:\n  if context.steps[id].status\
+      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
+      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
+      \ + \"\\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- cis_v140
+type: Subflow.playbook

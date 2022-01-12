@@ -1,15 +1,31 @@
 connections:
   aws: aws_connection
-desc: ''
+desc: 'This section contains recommendations for configuring AWS''s account networking
+  features.
+
+  '
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: cis_v130_5
+outputs:
+  S2: '{{steps.S2.output}}'
+  S4: '{{steps.S4.output}}'
+  S6: '{{steps.S6.output}}'
+  S8: '{{steps.S8.output}}'
+  check_name: cis_v130_5
+  execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  description: The Network Access Control List (NACL) function provide stateless filtering
+  text: '# 5.1 Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote server
+    administration ports'
+- text: The Network Access Control List (NACL) function provide stateless filtering
     of ingress and egress network traffic to AWS resources. It is recommended that
     no NACL allows unrestricted ingress access to remote server administration ports,
     such as SSH to port 22 and RDP to port 3389.
-  text: '#5.1 Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote server
-    administration ports'
 - action: core.sql
   desc: Description
   id: S1
@@ -59,7 +75,7 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "#5.1 Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote
+      check.name = "5.1 Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote
       server administration ports"
 
       check.severity = "DefaultSeverity"
@@ -68,12 +84,12 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: Security groups provide stateful filtering of ingress and egress network
-    traffic to AWS resources. It is recommended that no security group allows unrestricted
+  text: '# 5.2 Ensure no security groups allow ingress from 0.0.0.0/0 to remote server
+    administration ports'
+- text: Security groups provide stateful filtering of ingress and egress network traffic
+    to AWS resources. It is recommended that no security group allows unrestricted
     ingress access to remote server administration ports, such as SSH to port 22 and
     RDP to port 3389.
-  text: '#5.2 Ensure no security groups allow ingress from 0.0.0.0/0 to remote server
-    administration ports'
 - action: core.sql
   desc: Description
   id: S3
@@ -113,7 +129,7 @@ steps:
 
       check.details = context.steps.S3.output.rows
 
-      check.name = "#5.2 Ensure no security groups allow ingress from 0.0.0.0/0 to
+      check.name = "5.2 Ensure no security groups allow ingress from 0.0.0.0/0 to
       remote server administration ports"
 
       check.severity = "DefaultSeverity"
@@ -122,14 +138,14 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: A VPC comes with a default security group whose initial settings deny
-    all inbound traffic, allow all outbound traffic, and allow all traffic between
-    instances assigned to the security group. If you don't specify a security group
-    when you launch an instance, the instance is automatically assigned to this default
-    security group. Security groups provide stateful filtering of ingress/egress network
-    traffic to AWS resources. It is recommended that the default security group restrict
-    all traffic.
-  text: '#5.3 Ensure the default security group of every VPC restricts all traffic'
+  text: '# 5.3 Ensure the default security group of every VPC restricts all traffic'
+- text: A VPC comes with a default security group whose initial settings deny all
+    inbound traffic, allow all outbound traffic, and allow all traffic between instances
+    assigned to the security group. If you don't specify a security group when you
+    launch an instance, the instance is automatically assigned to this default security
+    group. Security groups provide stateful filtering of ingress/egress network traffic
+    to AWS resources. It is recommended that the default security group restrict all
+    traffic.
 - action: core.sql
   desc: Description
   id: S5
@@ -165,8 +181,8 @@ steps:
 
       check.details = context.steps.S5.output.rows
 
-      check.name = "#5.3 Ensure the default security group of every VPC restricts
-      all traffic"
+      check.name = "5.3 Ensure the default security group of every VPC restricts all
+      traffic"
 
       check.severity = "DefaultSeverity"
 
@@ -174,14 +190,14 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: A VPC comes with a default security group whose initial settings deny
-    all inbound traffic, allow all outbound traffic, and allow all traffic between
-    instances assigned to the security group. If you don't specify a security group
-    when you launch an instance, the instance is automatically assigned to this default
-    security group. Security groups provide stateful filtering of ingress/egress network
-    traffic to AWS resources. It is recommended that the default security group restrict
-    all traffic.
-  text: '#5.4 Ensure routing tables for VPC peering are ''least access'''
+  text: '# 5.4 Ensure routing tables for VPC peering are ''least access'''
+- text: A VPC comes with a default security group whose initial settings deny all
+    inbound traffic, allow all outbound traffic, and allow all traffic between instances
+    assigned to the security group. If you don't specify a security group when you
+    launch an instance, the instance is automatically assigned to this default security
+    group. Security groups provide stateful filtering of ingress/egress network traffic
+    to AWS resources. It is recommended that the default security group restrict all
+    traffic.
 - action: core.sql
   desc: Description
   id: S7
@@ -209,39 +225,51 @@ steps:
 
       check.details = context.steps.S7.output.rows
 
-      check.name = "#5.4 Ensure routing tables for VPC peering are ''least access''"
+      check.name = "5.4 Ensure routing tables for VPC peering are ''least access''"
 
       check.severity = "DefaultSeverity"
 
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
     code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  cis_v130_5\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  cis_v130_5 Check results \",\"type\":\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\n\
-      message_blocks.append(context_section)\n\nstep_ids = ['S2', 'S4', 'S6', 'S8']\n\
-      for id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
-      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
-      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
-      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
-      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
-      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
-      \\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nexecution_url =\
+      \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
+      \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
+      \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
+      : \"plain_text\",\"text\": \":speaker:  cis_v130_5  :speaker:\"}}\ncontext_section\
+      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  cis_v130_5 Check\
+      \ results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
+      ,\"text\":{\"text\": \":point_right: <\" + execution_url + \"| *Full report\
+      \ available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
+      \nstep_ids = ['S2', 'S4', 'S6', 'S8']\nfor id in step_ids:\n  if context.steps[id].status\
+      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
+      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
+      \ + \"\\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- cis_v130
+type: Subflow.playbook

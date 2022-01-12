@@ -1,24 +1,29 @@
 connections:
   aws: aws_connection
-desc: This section contains recommendations for configuring Lambda resources and options.
+desc: 'This section contains recommendations for configuring Lambda resources and
+  options.
+
+  '
 inputs:
   send_notif:
     default: true
     display_name: Send Slack Notification
     required: true
     type: checkbox
-name: foundational_security_lambda
+name: pci_v321_lambda
 outputs:
   S2: '{{steps.S2.output}}'
   S4: '{{steps.S4.output}}'
-  check_name: foundational_security_lambda
+  check_name: pci_v321_lambda
   execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  text: '# 1 Lambda function policies should prohibit public access'
+  text: '# 1 Lambda functions should prohibit public access'
 - text: This control checks whether the Lambda function resource-based policy prohibits
-    public access outside of your account. The Lambda function should not be publicly
-    accessible, as this may allow unintended access to your code stored in the function.
+    public access. It does not check for access to the Lambda function by internal
+    principals, such as IAM roles. You should ensure that access to the Lambda function
+    is restricted to authorized principals only by using least privilege Lambda resource-based
+    policies.
 - action: core.sql
   desc: Description
   id: S1
@@ -53,7 +58,7 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "1 Lambda function policies should prohibit public access"
+      check.name = "1 Lambda functions should prohibit public access"
 
       check.severity = "critical"
 
@@ -61,25 +66,18 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  text: '# 2 Lambda functions should use latest runtimes'
-- text: 'This control checks that the Lambda function settings for runtimes match
-    the expected values set for the latest runtimes for each supported language. This
-    control checks for the following runtimes: nodejs14.x, nodejs12.x, nodejs10.x,
-    python3.8, python3.7, python3.6, ruby2.7, ruby2.5,java11, java8, go1.x, dotnetcore3.1,
-    dotnetcore2.1.'
+  text: '# 2 Lambda functions should be in a VPC'
+- text: This control checks whether a Lambda function is in a VPC. It does not evaluate
+    the VPC subnet routing configuration to determine public reachability.
 - action: core.sql
   desc: Description
   id: S3
   inputs:
     sql: " \n select\n  -- Required Columns\n  arn as resource,\n  case\n    when\
-      \ runtime in ('nodejs14.x', 'nodejs12.x', 'nodejs10.x', 'python3.8', 'python3.7',\
-      \ 'python3.6', 'ruby2.5', 'ruby2.7', 'java11', 'java8', 'go1.x', 'dotnetcore2.1',\
-      \ 'dotnetcore3.1') then 'ok'\n    else 'alarm'\n  end as status,\n  case\n \
-      \   when runtime in ('nodejs14.x', 'nodejs12.x', 'nodejs10.x', 'python3.8',\
-      \ 'python3.7', 'python3.6', 'ruby2.5', 'ruby2.7', 'java11', 'java8', 'go1.x',\
-      \ 'dotnetcore2.1', 'dotnetcore3.1') then title || ' uses latest runtimes.'\n\
-      \    else title || ' uses latest runtimes.'\n  end as reason,\n  -- Additional\
-      \ Dimensions\n  region,\n  account_id\nfrom\n  aws_lambda_function;\n"
+      \ vpc_id is null then 'alarm'\n    else 'ok'\n  end status,\n  case\n    when\
+      \ vpc_id is null then title || ' is not in VPC.'\n    else title || ' is in\
+      \ VPC ' || vpc_id || '.'\n  end reason,\n  -- Additional Dimensions\n  region,\n\
+      \  account_id\nfrom\n  aws_lambda_function;\n"
   name: Perform the query
 - action: core.python
   desc: Description
@@ -100,9 +98,9 @@ steps:
 
       check.details = context.steps.S3.output.rows
 
-      check.name = "2 Lambda functions should use latest runtimes"
+      check.name = "2 Lambda functions should be in a VPC"
 
-      check.severity = "medium"
+      check.severity = "critical"
 
 
       print(json.dumps(check.toDict()))'
@@ -118,20 +116,19 @@ steps:
       \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
       \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
       \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
-      : \"plain_text\",\"text\": \":speaker:  foundational_security_lambda  :speaker:\"\
-      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
-      \ |  foundational_security_lambda Check results \",\"type\":\"mrkdwn\"}]}\n\
-      blink_execution = {\"type\":\"section\",\"text\":{\"text\": \":point_right:\
-      \ <\" + execution_url + \"| *Full report available in Blink*>\" ,\"type\":\"\
-      mrkdwn\"}}\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
-      message_blocks.append(blink_execution)\n\nstep_ids = ['S2', 'S4']\nfor id in\
-      \ step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
-      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
-      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
-      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
-      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
-      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
-      \\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      : \"plain_text\",\"text\": \":speaker:  pci_v321_lambda  :speaker:\"}}\ncontext_section\
+      \ = {\"type\":\"context\",\"elements\":[{\"text\": today+\" |  pci_v321_lambda\
+      \ Check results \",\"type\":\"mrkdwn\"}]}\nblink_execution = {\"type\":\"section\"\
+      ,\"text\":{\"text\": \":point_right: <\" + execution_url + \"| *Full report\
+      \ available in Blink*>\" ,\"type\":\"mrkdwn\"}}\nmessage_blocks.append(header)\n\
+      message_blocks.append(context_section)\nmessage_blocks.append(blink_execution)\n\
+      \nstep_ids = ['S2', 'S4']\nfor id in step_ids:\n  if context.steps[id].status\
+      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
+      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
+      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
+      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
+      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
+      \ + \"\\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
       \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
@@ -147,5 +144,6 @@ steps:
 tags:
 - AWS
 - Compliance
+- pci_v321
 - lambda
 type: Subflow.playbook

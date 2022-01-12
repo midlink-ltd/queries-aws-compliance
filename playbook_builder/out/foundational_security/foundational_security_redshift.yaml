@@ -1,10 +1,26 @@
 connections:
   aws: aws_connection
-desc: ''
+desc: This section contains recommendations for configuring AWS Redshift resources
+  and options.
+inputs:
+  send_notif:
+    default: true
+    display_name: Send Slack Notification
+    required: true
+    type: checkbox
 name: foundational_security_redshift
+outputs:
+  S10: '{{steps.S10.output}}'
+  S2: '{{steps.S2.output}}'
+  S4: '{{steps.S4.output}}'
+  S6: '{{steps.S6.output}}'
+  S8: '{{steps.S8.output}}'
+  check_name: foundational_security_redshift
+  execution_url: '{{execution_url}}'
 steps:
 - desc: example description delete afterwards
-  description: This control checks whether Amazon Redshift clusters are publicly accessible.
+  text: '# 1 Amazon Redshift clusters should prohibit public access'
+- text: This control checks whether Amazon Redshift clusters are publicly accessible.
     It evaluates the PubliclyAccessible field in the cluster configuration item. The
     PubliclyAccessible attribute of the Amazon Redshift cluster configuration indicates
     whether the cluster is publicly accessible. When the cluster is configured with
@@ -13,7 +29,6 @@ steps:
     not publicly accessible, it is an internal instance with a DNS name that resolves
     to a private IP address. Unless you intend for your cluster to be publicly accessible,
     the cluster should not be configured with PubliclyAccessible set to true.
-  text: '#1 Amazon Redshift clusters should prohibit public access'
 - action: core.sql
   desc: Description
   id: S1
@@ -43,7 +58,7 @@ steps:
 
       check.details = context.steps.S1.output.rows
 
-      check.name = "#1 Amazon Redshift clusters should prohibit public access"
+      check.name = "1 Amazon Redshift clusters should prohibit public access"
 
       check.severity = "critical"
 
@@ -51,15 +66,14 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether connections to Amazon Redshift clusters
-    are required to use encryption in transit. The check fails if the Amazon Redshift
-    cluster parameter require_SSL is not set to 1. TLS can be used to help prevent
-    potential attackers from using person-in-the-middle or similar attacks to eavesdrop
-    on or manipulate network traffic. Only encrypted connections over TLS should be
-    allowed. Encrypting data in transit can affect performance. You should test your
-    application with this feature to understand the performance profile and the impact
-    of TLS.
-  text: '#2 Connections to Amazon Redshift clusters should be encrypted in transit'
+  text: '# 2 Connections to Amazon Redshift clusters should be encrypted in transit'
+- text: This control checks whether connections to Amazon Redshift clusters are required
+    to use encryption in transit. The check fails if the Amazon Redshift cluster parameter
+    require_SSL is not set to 1. TLS can be used to help prevent potential attackers
+    from using person-in-the-middle or similar attacks to eavesdrop on or manipulate
+    network traffic. Only encrypted connections over TLS should be allowed. Encrypting
+    data in transit can affect performance. You should test your application with
+    this feature to understand the performance profile and the impact of TLS.
 - action: core.sql
   desc: Description
   id: S3
@@ -97,7 +111,7 @@ steps:
 
       check.details = context.steps.S3.output.rows
 
-      check.name = "#2 Connections to Amazon Redshift clusters should be encrypted
+      check.name = "2 Connections to Amazon Redshift clusters should be encrypted
       in transit"
 
       check.severity = "medium"
@@ -106,10 +120,10 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether Amazon Redshift clusters have automated
-    snapshots enabled. It also checks whether the snapshot retention period is greater
-    than or equal to seven.
-  text: '#3 Amazon Redshift clusters should have automatic snapshots enabled'
+  text: '# 3 Amazon Redshift clusters should have automatic snapshots enabled'
+- text: This control checks whether Amazon Redshift clusters have automated snapshots
+    enabled. It also checks whether the snapshot retention period is greater than
+    or equal to seven.
 - action: core.sql
   desc: Description
   id: S5
@@ -142,7 +156,7 @@ steps:
 
       check.details = context.steps.S5.output.rows
 
-      check.name = "#3 Amazon Redshift clusters should have automatic snapshots enabled"
+      check.name = "3 Amazon Redshift clusters should have automatic snapshots enabled"
 
       check.severity = "medium"
 
@@ -150,9 +164,9 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether automatic major version upgrades are enabled
-    for the Amazon Redshift cluster.
-  text: '#6 Amazon Redshift should have automatic upgrades to major versions enabled'
+  text: '# 6 Amazon Redshift should have automatic upgrades to major versions enabled'
+- text: This control checks whether automatic major version upgrades are enabled for
+    the Amazon Redshift cluster.
 - action: core.sql
   desc: Description
   id: S7
@@ -184,7 +198,7 @@ steps:
 
       check.details = context.steps.S7.output.rows
 
-      check.name = "#6 Amazon Redshift should have automatic upgrades to major versions
+      check.name = "6 Amazon Redshift should have automatic upgrades to major versions
       enabled"
 
       check.severity = "medium"
@@ -193,9 +207,9 @@ steps:
       print(json.dumps(check.toDict()))'
   name: Format Result
 - desc: example description delete afterwards
-  description: This control checks whether an Amazon Redshift cluster has EnhancedVpcRouting
+  text: '# 7 Amazon Redshift clusters should use enhanced VPC routing'
+- text: This control checks whether an Amazon Redshift cluster has EnhancedVpcRouting
     enabled.
-  text: '#7 Amazon Redshift clusters should use enhanced VPC routing'
 - action: core.sql
   desc: Description
   id: S9
@@ -227,40 +241,52 @@ steps:
 
       check.details = context.steps.S9.output.rows
 
-      check.name = "#7 Amazon Redshift clusters should use enhanced VPC routing"
+      check.name = "7 Amazon Redshift clusters should use enhanced VPC routing"
 
       check.severity = "high"
 
 
       print(json.dumps(check.toDict()))'
   name: Format Result
+- desc: ' '
+  text: '# Send Report to communication channel'
 - action: core.python
   desc: Description
   id: FormatResult
   inputs:
     code: "from dotmap import DotMap\nfrom datetime import date\nimport json\n\ntoday\
-      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nheader = {\"type\"\
-      : \"header\", \"text\": {\"type\": \"plain_text\",\"text\": \":speaker:  foundational_security_redshift\
-      \  :speaker:\"}}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"\
-      text\": today+\" |  foundational_security_redshift Check results \",\"type\"\
-      :\"mrkdwn\"}]}\n\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
-      \nstep_ids = ['S2', 'S4', 'S6', 'S8', 'S10']\nfor id in step_ids:\n  if context.steps[id].status\
-      \ == 'OK':\n    message_blocks.append({\"type\":\"divider\"})\n    \n    section\
-      \ = DotMap()\n    section.type = \"section\"\n    section.text = DotMap()\n\
-      \    section.text.type = \"mrkdwn\"\n    section.text.text = \"\"\n    if context.steps[id].output.isAlarm:\n\
-      \      section.text.text +=  \":x: \"\n    else:\n       section.text.text +=\
-      \  \":white_check_mark: \"\n    \n    section.text.text += context.steps[id].output.name[:82]\
-      \ + \"\\n\"\n    \n\n    message_blocks.append(section.toDict().copy())\n\n\
-      \  \nprint(json.dumps(message_blocks))"
+      \ = \"*\" + str(date.today()) +\"*\"\n\nmessage_blocks = []\nexecution_url =\
+      \ context.server_environment_url + \"/workspace/\" + context.workspace_id +\
+      \ \"/playbooks/library/playbook?id=\" + context.playbook_id + \"&execution=\"\
+      \ + context.execution_id \nheader = {\"type\": \"header\", \"text\": {\"type\"\
+      : \"plain_text\",\"text\": \":speaker:  foundational_security_redshift  :speaker:\"\
+      }}\ncontext_section = {\"type\":\"context\",\"elements\":[{\"text\": today+\"\
+      \ |  foundational_security_redshift Check results \",\"type\":\"mrkdwn\"}]}\n\
+      blink_execution = {\"type\":\"section\",\"text\":{\"text\": \":point_right:\
+      \ <\" + execution_url + \"| *Full report available in Blink*>\" ,\"type\":\"\
+      mrkdwn\"}}\nmessage_blocks.append(header)\nmessage_blocks.append(context_section)\n\
+      message_blocks.append(blink_execution)\n\nstep_ids = ['S2', 'S4', 'S6', 'S8',\
+      \ 'S10']\nfor id in step_ids:\n  if context.steps[id].status == 'OK':\n    message_blocks.append({\"\
+      type\":\"divider\"})\n    \n    section = DotMap()\n    section.type = \"section\"\
+      \n    section.text = DotMap()\n    section.text.type = \"mrkdwn\"\n    section.text.text\
+      \ = \"\"\n    if context.steps[id].output.isAlarm:\n      section.text.text\
+      \ +=  \":x: \"\n    else:\n       section.text.text +=  \":white_check_mark:\
+      \ \"\n    \n    section.text.text += context.steps[id].output.name[:82] + \"\
+      \\n\" if len(context.steps[id].output.name) > 82 else context.steps[id].output.name\n\
+      \    \n\n    message_blocks.append(section.toDict().copy())\n\n  \nprint(json.dumps(message_blocks))"
   name: Format Final Result
 - action: slack.SendMessage
-  connectiuon:
+  connections:
     slack: slack_connection
   id: SendResult
   inputs:
     Blocks: '{{steps.FormatResult.output}}'
-    Channel: demo
+    Channel: random
     Text: ''
   name: Send report to clack channel
-tags: []
-type: Flow
+  when: '{{inputs.send_notif}}'
+tags:
+- AWS
+- Compliance
+- redshift
+type: Subflow.playbook
