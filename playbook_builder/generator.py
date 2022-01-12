@@ -133,11 +133,11 @@ def convertBenchToPlaybook(bench, playbook):
         last_steps = DotMap(yaml.load(stream,Loader=yaml.FullLoader))
 
     sectionId = 0
+    playbook.outputs = DotMap()
     output_ids = []
 
-    if len(bench.controls) > 0:
-        playbook.type = "Subflow.playbook"
-
+    playbook.type = "Subflow.playbook"
+        
     for child in bench.children:
         section = DotMap(stepsTemplate["steps"][0])
         description = DotMap(stepsTemplate["steps"][1])
@@ -146,6 +146,7 @@ def convertBenchToPlaybook(bench, playbook):
         action.id = "S"+ str(sectionId+1)
         action.name = child
         
+        playbook.outputs[child] = "{{steps." + action.id + ".output}}"
         output_ids.append(action.id)
 
         playbook.steps.append(section.toDict())
@@ -194,13 +195,25 @@ def convertBenchToPlaybook(bench, playbook):
         playbook.steps.append(sql.toDict())
         playbook.steps.append(format_message.toDict())
 
+        playbook.outputs[format_message.id] = "{{steps." + format_message.id + ".output}}"
         output_ids.append(format_message.id)
 
         sectionId += 2
-    
-    last_steps.steps[1].inputs.code = last_steps.steps[1].inputs.code.replace("GeneratedStepsIds", str(output_ids)).replace("BenchmarkName", playbook.name)
-    for step in last_steps.steps:
-        playbook["steps"].append(step.toDict())
+
+    #add section step
+    playbook["steps"].append(last_steps.steps[0].toDict())
+    #add format step depending on subflow or parent
+    if len(bench.children) > 0:
+        last_steps.steps[2].inputs.code = last_steps.steps[2].inputs.code.replace("GeneratedStepsIds", str(output_ids)).replace("BenchmarkName", playbook.name)
+        playbook["steps"].append(last_steps.steps[2].toDict())
+    else:   
+        last_steps.steps[1].inputs.code = last_steps.steps[1].inputs.code.replace("GeneratedStepsIds", str(output_ids)).replace("BenchmarkName", playbook.name)
+        playbook["steps"].append(last_steps.steps[1].toDict())
+    #add send slack message action
+    playbook["steps"].append(last_steps.steps[3].toDict())
+
+    playbook.outputs["check_name"] = playbook.name
+    playbook.outputs["execution_url"] = "{{execution_url}}"
 
     return playbook
 
@@ -222,14 +235,12 @@ def generateControlPlaybooks(controlName, defaultTags=["Compliance"]):
 
 def main():
     
-    # generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
-    # generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
-    # generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
-    # generateControlPlaybooks("hipaa",["AWS", "Compliance", "hipaa"])
-    # generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
-    # generateControlPlaybooks("rbi_cyber_security",["AWS", "Compliance", "rbi_cyber_security"])
-    # generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
-    generateControlPlaybooks("test")
+    generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
+    generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
+    generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
+    generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
+    generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
+    #generateControlPlaybooks("test")
 
 
     
