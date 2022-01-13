@@ -51,17 +51,122 @@ def getTagsFromLocals(lines, localStartIndex):
         if "tags" in line:
             nLine = line.split("=")
             tags[nLine[0].strip()] = []
-        if line.strip().startswith("plugin") or line.strip().startswith("service"):
+        if line.strip().startswith("plugin ") or line.strip().startswith("service "):
             sLine = line.split("=")
             tags[nLine[0].strip()].append(sLine[1].strip().replace('"',''))
     return tags
 
+def readFromLocals(value, defaultValue):
+    control = DotMap()
+    replaceCmd = []
+    searchLocal = value
+    if value.startswith("local."):
+        searchLocal = value.replace("local.","")
+    elif value.startswith("replace("):
+        replaceCmd = value.replace('replace(','').replace(')','').replace('"','').split(',')
+        searchLocal = replaceCmd[0].split('.')[1] 
+    
+
+    currentDir = os.getcwd()
+    found = False
+
+    base_len = len(currentDir)
+    base_level = currentDir.count(os.sep)
+
+    sp_exts =['.sp']
+
+    for root, dirs, files in os.walk(currentDir): 
+        rel_dir = '.{1}{0}'.format(os.sep, root[base_len:])
+        sp_files =  sorted([f for f in files if not f[0] == '' and os.path.splitext(f)[-1] in sp_exts])
+        for fname in sp_files: # change directory as needed
+             # make sure it's a file, not a directory entry
+            with open(rel_dir+fname) as stream:   # open file
+                i = 0
+                lines = stream.readlines()
+                while i < len(lines):
+                    if "locals {" in lines[i]:
+                        i+=1
+                        while not lines[i].strip().startswith("}"):
+                            if lines[i].strip().startswith(searchLocal):    # search for string
+                                sLine = lines[i].split('=')
+                                if len(replaceCmd) > 1:
+                                    defaultValue = sLine[1].strip().replace(replaceCmd[1].strip(),replaceCmd[2].strip()).replace('"','')
+                                else:
+                                    defaultValue = sLine[1].strip()
+                                found = True
+                                break
+                            i+=1
+                    if found:
+                        break
+                    i+=1
+        if found:
+            break
+
+    
+    return defaultValue
+
+def readControlPropertyValue(line, name):
+    key = ""
+    value = ""
+    sLine = line.split("=")
+    if len(sLine) > 1 :
+        key = sLine[0].strip()
+        value = sLine[1].strip().replace('"','')
+        if value.startswith("replace(local.") or value.startswith("local."):
+            value = readFromLocals(value, name)
+    return key, value
+
+
+def parseControl(lines, i):
+    control = DotMap()
+    control.name = lines[i].split(' ')[1].replace('"','')
+    i+=1
+    while not lines[i].startswith("}"):
+                    key, value = readControlPropertyValue(lines[i], control.name)
+                    sLine = lines[i].split("=")
+                    control[key] = value
+                        
+                    i+=1
+    return control, i
+
+
+def findControl(controlName,dir):
+    control = DotMap()
+    searchFilter = 'control "' + controlName + '" {' 
+    currentDir = os.path.dirname(__file__) + "/../" + dir
+    found = False
+
+    for fname in os.listdir(currentDir):    # change directory as needed
+        if fname.endswith(".sp"):    # make sure it's a file, not a directory entry
+            with open(currentDir+"/"+fname) as stream:   # open file
+                i = 0
+                lines = stream.readlines()
+                while i < len(lines):       # process line by line
+                    if searchFilter in lines[i]:    # search for string
+                        control, i = parseControl(lines,i)
+                        found = True
+                        break
+                    i+=1
+        if found:
+            break
+
+    return control.copy()
+
 def cleanupBenchmark(benchmarks):
     result = DotMap()
-    
     for key in benchmarks:
-      if len([y for y in benchmarks[key].controls if not isinstance(y, str)]):
-        result[key] = benchmarks[key].copy()
+        #try to get missing sql from external files
+        empty_controls = [x for x in benchmarks[key].controls if isinstance(x, str)]
+        
+        for control in empty_controls:
+            temp = findControl(control, "control")
+            benchmarks[key].controls[benchmarks[key].controls.index(control)] = temp.copy()
+
+        if len(benchmarks[key].children) > 0 or len([x for x in benchmarks[key].controls if not isinstance(x, str)]) > 0:
+            #control query was defined in benchmark file and implemented
+            result[key] = benchmarks[key].copy()
+
+
 
     return result
 
@@ -69,6 +174,7 @@ def parseBenchmark(controlFile):
     benchmark = DotMap()
     benchmark.name = ""
     benchmark.description = ""
+    benchmark.documentation = ""
 
     benchmarks = DotMap()
     
@@ -90,7 +196,7 @@ def parseBenchmark(controlFile):
                 benchmark.name = lines[i].split(' ')[1].replace('"','')
                 while not "children = [" in lines[i]:
                     if(lines[i].strip().startswith("title")):
-                        benchmark.title = lines[i].split(' ')[1].replace('"','')
+                        benchmark.title = lines[i].split('=')[1].replace('"','')
                     elif (lines[i].strip().startswith("description")):
                         benchmark.description = lines[i].split('=')[1].replace('"','')
                     elif (lines[i].strip().startswith("documentation")):
@@ -136,7 +242,7 @@ def getQuery(queryFile):
 def getDescriptionFromDocumentation(doc):
     desc = "Autogenerated playbook - no description available for parser"
     filePath = os.path.dirname(__file__) + "/../" + doc.strip()
-    if exists(filePath):
+    if os.path.isfile(filePath):
         with open(filePath) as stream:
             lines = stream.readlines()
             i = 0
@@ -199,11 +305,11 @@ def convertBenchToPlaybook(bench, playbook):
 
         queryFile = os.path.dirname(__file__) + "/../sqlite/auto/" + control["sql"].replace("query.",'').replace('"','')
         
-        if not exists(queryFile):
+        if not os.path.isfile(queryFile):
             queryFile = os.path.dirname(__file__) + "/../sqlite/manual/" + control["sql"].replace("query.",'').replace('"','')
         
 
-        if exists(queryFile):
+        if os.path.isfile(queryFile):
             # Fill section
             section.text = "# " + control["title"].replace('"','')
             description.text = control["description"].replace('"','')
@@ -255,7 +361,7 @@ def convertBenchToPlaybook(bench, playbook):
     return playbook
 
 
-def generateControlPlaybooks(controlName, defaultTags=["Compliance"]):
+def generateControlPlaybooks(controlName, defaultTags=["Compliance"], defaultConnection=DotMap({"kubernetes":"kubernetes_connection"})):
     cwd = "/../"+controlName+"/"
     for file in os.listdir(os.path.dirname(__file__) + cwd):
         if file.endswith(".sp"):
@@ -264,6 +370,7 @@ def generateControlPlaybooks(controlName, defaultTags=["Compliance"]):
                 if(benchmarks[key].name != ""):
                     playbook_template = loadTemplate()
                     playbook_template.tags.extend(defaultTags)
+                    playbook_template.connections = defaultConnection
                     playbook = convertBenchToPlaybook(benchmarks[key],playbook_template)
                     writePlaybook(playbook.toDict(), controlName, benchmarks[key].name.replace('"','') + ".yaml")
                 else:
@@ -272,12 +379,13 @@ def generateControlPlaybooks(controlName, defaultTags=["Compliance"]):
 
 def main():
     
-    generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
-    generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
-    generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
-    generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
-    generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
-    #generateControlPlaybooks("test")
+    # generateControlPlaybooks("foundational_security",["AWS", "Compliance"])
+    # generateControlPlaybooks("cis_v130",["AWS", "Compliance", "cis_v130"])
+    # generateControlPlaybooks("cis_v140",["AWS", "Compliance", "cis_v140"])
+    # generateControlPlaybooks("pci_v321",["AWS", "Compliance", "pci_v321"])
+    # generateControlPlaybooks("hipaa",["AWS", "Compliance", "hipaa"])
+    # generateControlPlaybooks("conformance_pack",["AWS", "Compliance", "conformance_pack"])
+    generateControlPlaybooks("test")
 
 
     
